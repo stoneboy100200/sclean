@@ -14,10 +14,22 @@ def to_csv(path, file):
                 line_list = line.strip('\n').split()
                 csv_file.writerow(line_list)
 
+def match_cpu_core(detail):
+    cpu = {}
+    def cpu_core(tgid_g, tid_g, core):
+        if tid_g.isdigit():
+            cpu.setdefault(tid_g, set()).add(core)
+        elif tgid_g.isdigit():
+            cpu.setdefault(tgid_g, set()).add(core)
+
+    detail.apply(lambda row: cpu_core(row['TGID'], row['TID'], row['CPU']), axis = 1)
+    return cpu
+
 def gen_data(data):
     # delete rows that contain 'Average:'
     detail = data[~data['Time'].isin(['Average:'])]
     # detail.to_csv('detail.csv')
+    cpu = match_cpu_core(detail)
 
     # get rows that contain 'Average:'
     av = data[data['Time'] == 'Average:']
@@ -25,16 +37,7 @@ def gen_data(data):
     av = av.drop(index=[0], axis = 0)
 
     def get_cpu_core(tgid, tid):
-        cpu = set()
-        def match_cpu_core(tgid_g, tid_g, core):
-            if tid != '-':
-                if tid == tid_g:
-                    cpu.add(core)
-            else:
-                if tgid == tgid_g:
-                    cpu.add(core)
-        detail.apply(lambda row: match_cpu_core(row['TGID'], row['TID'], row['CPU']), axis = 1)
-        return sorted(list(set(cpu)))
+        return sorted(list(cpu[tid] if tid.isdigit() else cpu[tgid]))
     av['CPU'] = av.apply(lambda row: get_cpu_core(row['TGID'], row['TID']), axis = 1)
     av = av.drop(columns=['Time', 'UID'])
     return av
@@ -43,7 +46,7 @@ def add_process(data):
     process = ""
     def get_process(tgid, command):
         global process
-        if tgid != '-':
+        if tgid.isdigit():
             process = command
         return process
     data['Process'] = data.apply(lambda row: get_process(row['TGID'], row['Command']), axis = 1)
@@ -78,7 +81,7 @@ def main(args):
     av.to_csv(file, index=False, columns = order)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Performance Statistics Tool. Develop by LiChao.")
+    parser = argparse.ArgumentParser(description="data cleaning tool for pidstat. Develop by LiChao.")
     parser.add_argument("-p", "--path", type=str, default="", help="path of original file.")
     parser.add_argument("-f", "--file", type=str, default="", help="name of target file.")
     args = parser.parse_args()

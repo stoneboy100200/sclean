@@ -6,6 +6,17 @@ import os
 import time
 import sys
 
+usr_process = ['algorithm_app',
+               'data_source_app',
+               'MCSApp',
+               'MCenter',
+               'cali_upload',
+               'jt_app',
+               'main.out',
+               'storage.out',
+               'MTransferCenter',
+               'test_tuning']
+
 def to_csv(path, file):
     with open(file, 'w+', newline='') as csvfile:
         csv_file = csv.writer(csvfile, dialect='excel')
@@ -37,7 +48,7 @@ def gen_data(data):
     av = av.drop(index=[0], axis = 0)
 
     def get_cpu_core(tgid, tid):
-        return sorted(list(cpu[tid] if tid.isdigit() else cpu[tgid]))
+        return sorted(list(map(int, cpu[tid] if tid.isdigit() else cpu[tgid])))
     av['CPU'] = av.apply(lambda row: get_cpu_core(row['TGID'], row['TID']), axis = 1)
     av = av.drop(columns=['Time', 'UID'])
     return av
@@ -50,6 +61,18 @@ def add_process(data):
             process = command
         return process
     data['Process'] = data.apply(lambda row: get_process(row['TGID'], row['Command']), axis = 1)
+
+def filter_process(data):
+    data = data[data['TGID'].isin(['-'])]
+    data = data[data['Process'].isin(usr_process)]
+    return data
+
+def sort_by_cpu(data):
+    data['Len'] = data.apply(lambda row: len(row['CPU']), axis = 1)
+    data = data.sort_values(by = 'Len' , ascending = True)
+    data = data.drop(columns=['Len'])
+    return data
+
 
 def main(args):
     data_path = args.path
@@ -76,7 +99,12 @@ def main(args):
     # data cleaning
     av = gen_data(data)
     add_process(av)
+    # remove row of main process
+    av = filter_process(av)
+    av = sort_by_cpu(av)
+    print(av)
 
+    # save
     order = ['Command', 'Process', 'TGID', 'TID', '%usr', '%system', '%guest', '%wait', '%CPU', 'CPU']
     av.to_csv(file, index=False, columns = order)
 

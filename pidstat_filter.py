@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 import csv
 import argparse
 import os
@@ -39,7 +40,6 @@ def match_cpu_core(detail):
 def gen_data(data):
     # delete rows that contain 'Average:'
     detail = data[~data['Time'].isin(['Average:'])]
-    # detail.to_csv('detail.csv')
     cpu = match_cpu_core(detail)
 
     # get rows that contain 'Average:'
@@ -60,16 +60,73 @@ def add_process(data):
         if tgid.isdigit():
             process = command
         return process
-    data['Process'] = data.apply(lambda row: get_process(row['TGID'], row['Command']), axis = 1)
+    data['Process'] = data.apply(lambda row: get_process(row['TGID'], row['Thread']), axis = 1)
 
 def filter_process(data):
     data = data[data['TGID'].isin(['-'])]
     data = data[data['Process'].isin(usr_process)]
     return data
 
+def get_graph_data(data):
+    data[['%usr', '%system', '%CPU']] = data[['%usr', '%system', '%CPU']].astype(float)
+    process = data.groupby(data['Process'])[['%usr', '%system', '%CPU']].sum()
+    x_list = process.index
+    index = np.arange(len(x_list));
+    y_list1 = round(process['%usr'], 2)
+    y_list2 = round(process['%system'], 2)
+    y_list3 = round(process['%CPU'], 2)
+    return x_list, index, y_list1, y_list2, y_list3
+
+def set_graph_param(data, ax, bar_width, title):
+    x_list, index, y_list1, y_list2, y_list3 = get_graph_data(data)
+    rect1 = ax.bar(index-bar_width, y_list1, bar_width, label='usr')
+    rect2 = ax.bar(index, y_list2, bar_width, label='system')
+    rect3 = ax.bar(index+bar_width, y_list3, bar_width, label='total')
+    ax.set_ylabel('CPU Usage(%)')
+    ax.set_xticks(index)
+    ax.set_xticklabels(x_list, rotation=10)
+    ax.set_title(title)
+    ax.set_ylim(0, 100)
+    ax.legend(loc='upper right', frameon=False)
+    auto_text(rect1, ax)
+    auto_text(rect2, ax)
+    auto_text(rect3, ax)
+
+def gen_graph(data_0, data_1, data_2, data_3, data_n):
+    bar_width=0.3
+    fig, (ax0, ax1, ax2, ax3, ax4) = plt.subplots(5, figsize=(12, 20))
+    plt.subplots_adjust(hspace=0.5)
+    set_graph_param(data_0, ax0, bar_width, 'CPU0')
+    set_graph_param(data_1, ax1, bar_width, 'CPU1')
+    set_graph_param(data_2, ax2, bar_width, 'CPU2')
+    set_graph_param(data_3, ax3, bar_width, 'CPU3')
+    set_graph_param(data_n, ax4, bar_width, 'CPU0~CPU3')
+    plt.savefig("pidstat.png", facecolor="white")
+
+def auto_text(rects, ax):
+    for rect in rects:
+        ax.text(rect.get_x(), rect.get_height(), rect.get_height(), ha='left', va='bottom')
+
 def sort_by_cpu(data):
+    # add a new column for length of 'CPU'
     data['Len'] = data.apply(lambda row: len(row['CPU']), axis = 1)
     data = data.sort_values(by = 'Len' , ascending = True)
+    data_s = data.loc[data['Len'] == 1].sort_values(by = 'CPU', ascending = True)
+    data_m = data.loc[data['Len'] != 1]
+    data = data_s.append(data_m)
+
+    # transform list to str
+    data['CPU'] = data['CPU'].apply(lambda row: ','.join(str(i) for i in row))
+    # sort by 'Process' and 'TID'
+    data_0 = data.loc[data['CPU'] == '0'].sort_values(by = ['Process', 'TID'], ascending = True)
+    data_1 = data.loc[data['CPU'] == '1'].sort_values(by = ['Process', 'TID'], ascending = True)
+    data_2 = data.loc[data['CPU'] == '2'].sort_values(by = ['Process', 'TID'], ascending = True)
+    data_3 = data.loc[data['CPU'] == '3'].sort_values(by = ['Process', 'TID'], ascending = True)
+    data_n = data.loc[data['Len'] != 1].sort_values(by = ['Process', 'TID'], ascending = True)
+    # gen bar graph for every CPU
+    gen_graph(data_0, data_1, data_2, data_3, data_n)
+
+    data = pd.concat([data_0, data_1, data_2, data_3, data_n], axis=0,ignore_index=True)
     data = data.drop(columns=['Len'])
     return data
 
@@ -95,17 +152,16 @@ def main(args):
     # convert to csv file
     to_csv(data_path, file)
     data = pd.read_csv(file, header=0,
-                       names=['Time', 'UID', 'TGID', 'TID', '%usr', '%system', '%guest', '%wait', '%CPU', 'CPU', 'Command'])
+                       names=['Time', 'UID', 'TGID', 'TID', '%usr', '%system', '%guest', '%wait', '%CPU', 'CPU', 'Thread'])
     # data cleaning
     av = gen_data(data)
     add_process(av)
     # remove row of main process
     av = filter_process(av)
     av = sort_by_cpu(av)
-    print(av)
 
-    # save
-    order = ['Command', 'Process', 'TGID', 'TID', '%usr', '%system', '%guest', '%wait', '%CPU', 'CPU']
+    # save by csv
+    order = ['Thread', 'Process', 'TGID', 'TID', '%usr', '%system', '%guest', '%wait', '%CPU', 'CPU']
     av.to_csv(file, index=False, columns = order)
 
 if __name__ == "__main__":

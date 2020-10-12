@@ -95,13 +95,13 @@ def set_graph_param(data, ax, bar_width, title):
 def gen_graph(data_0, data_1, data_2, data_3, data_n):
     bar_width=0.3
     fig, (ax0, ax1, ax2, ax3, ax4) = plt.subplots(5, figsize=(12, 20))
-    plt.subplots_adjust(hspace=0.5)
+    plt.subplots_adjust(hspace=0.4)
     set_graph_param(data_0, ax0, bar_width, 'CPU0')
     set_graph_param(data_1, ax1, bar_width, 'CPU1')
     set_graph_param(data_2, ax2, bar_width, 'CPU2')
     set_graph_param(data_3, ax3, bar_width, 'CPU3')
     set_graph_param(data_n, ax4, bar_width, 'CPU0~CPU3')
-    plt.savefig("pidstat.png", facecolor="white")
+    plt.savefig("pidstat.png", facecolor="white", bbox_inches='tight')
 
 def auto_text(rects, ax):
     for rect in rects:
@@ -134,13 +134,13 @@ def sort_by_cpu(data):
 def main(args):
     data_path = args.path
     file = args.file
-    print("data_path={}".format(data_path))
     if not os.path.exists(data_path):
         print("[Error] {} does not exist!".format(data_path))
         sys.exit(1)
+    print("data_path={}".format(data_path))
+
     if len(file) == 0:
         file = 'pid_stat.csv'
-
     if os.path.exists(file):
         org_file = file
         now = time.strftime("%Y-%m-%d-%H_%M_%S",time.localtime(time.time()))

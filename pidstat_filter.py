@@ -95,13 +95,13 @@ def set_graph_param(data, ax, bar_width, title):
 def gen_graph(data_0, data_1, data_2, data_3, data_n):
     bar_width=0.3
     fig, (ax0, ax1, ax2, ax3, ax4) = plt.subplots(5, figsize=(12, 20))
-    plt.subplots_adjust(hspace=0.4)
+    plt.subplots_adjust(hspace = 0.4)
     set_graph_param(data_0, ax0, bar_width, 'CPU0')
     set_graph_param(data_1, ax1, bar_width, 'CPU1')
     set_graph_param(data_2, ax2, bar_width, 'CPU2')
     set_graph_param(data_3, ax3, bar_width, 'CPU3')
     set_graph_param(data_n, ax4, bar_width, 'CPU0~CPU3')
-    plt.savefig("pidstat.png", facecolor="white", bbox_inches='tight')
+    plt.savefig("pidstat.jpg", bbox_inches='tight')
 
 def auto_text(rects, ax):
     for rect in rects:

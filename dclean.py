@@ -8,9 +8,6 @@ import os
 import time
 import sys
 from matplotlib import font_manager as fm, rcParams
-# import chardet
-# import codecs
-# from django.utils.encoding import smart_text
 
 # compatible with Chinese fonts
 plt.rcParams['font.sans-serif'] = ['SimHei']
@@ -171,11 +168,12 @@ def sort_by_cpu(data, core):
     data = data.drop(columns=['len'])
     return data
 
-def set_line_char_param(cpu_data, cpu_status, cpu):
+def set_line_char_param(cpu_data, cpu_status, title):
     line_color = ['b', 'r', 'g', 'y', 'k', 'c', 'm', 'pink', 'darkred', 'olive', 'lime', 'deeppink']
     line_style = '-'
     x_num = 30
     x_step = 35
+
     if len(cpu_data.index) > x_num:
         x_step = int(len(cpu_data.index) / x_num)
     for i, status in enumerate(cpu_status):
@@ -183,9 +181,10 @@ def set_line_char_param(cpu_data, cpu_status, cpu):
     plt.xlabel('Time', fontsize = 12)
     plt.ylabel('CPU Usage(%)', fontsize = 12)
     plt.xticks(np.arange(0, len(cpu_data.index), x_step), cpu_data.iloc[np.arange(0, len(cpu_data.index), x_step), 0].index, rotation = 25)
-    plt.ylim(0,100)
+    if title[0:3] == 'CPU':
+        plt.ylim(0,100)
     plt.legend(cpu_status)
-    plt.title(cpu)
+    plt.title(title)
 
 def gen_line_chart(data, core, cpu_status):
     detail = data[~data.index.isin(['Average:'])]
@@ -235,27 +234,51 @@ def mpstat_process(mpstat_path, core, m_status):
     cpu_status = ['%'+i for i in m_status]
     gen_line_chart(data, core, cpu_status)
 
+def vmstat_process(vmstat_path, v_status):
+    if not os.path.exists(vmstat_path):
+        print("[Error] {} does not exist!".format(vmstat_path))
+        sys.exit(1)
+    print("vmstat_path={}".format(vmstat_path))
+
+    # convert to csv file
+    file = 'vmstat.csv'
+    convert_csv(vmstat_path, file)
+    data = pd.read_csv(file, header=0)
+    # print(data)
+    data.columns = data.columns.map(lambda x:x.lower())
+    v_data = data[data.r.apply(lambda x: x.isnumeric())]
+    # print(v_data)
+    fig = plt.figure(figsize = (20, 10))
+    set_line_char_param(v_data, v_status, 'vmstat')
+    plt.savefig("vmstat.jpg", bbox_inches='tight')
+
 
 def main(args):
     pidstat_path = args.pidstat
     mpstat_path = args.mpstat
+    vmstat_path = args.vmstat
     thread = args.thread
     core = args.core
     m_status = args.m_status
     p_status = args.p_status
+    v_status = args.v_status
 
     if len(pidstat_path) != 0:
         pidstat_process(pidstat_path, core, thread, p_status)
     if len(mpstat_path) != 0:
         mpstat_process(mpstat_path, core, m_status)
+    if len(vmstat_path) != 0:
+        vmstat_process(vmstat_path, v_status)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="data cleaning tool for pidstat and mpstat.")
     parser.add_argument("-p", "--pidstat", type=str, default="", help="path of pidstat log.")
     parser.add_argument("-m", "--mpstat", type=str, default="", help="path of mpstat log.")
+    parser.add_argument("-v", "--vmstat", type=str, default="", help="path of vmstat log.")
     parser.add_argument("-c", "--core", type=str, default=['0'], nargs='*', help="CPU core.")
     parser.add_argument("-ms", "--m_status", type=str, default=['usr', 'sys', 'iowait', 'idle'], nargs='*', help="status of mpstat. eg. usr sys idle")
     parser.add_argument("-ps", "--p_status", type=str, default=['usr', 'system', 'cpu'], nargs='*', help="status of pidstat. eg. usr system")
+    parser.add_argument("-vs", "--v_status", type=str, default=['free', 'buff', 'cache'], nargs='*', help="status of vmstat. eg. free in cs")
     parser.add_argument("-t", "--thread", type=str, default="", help="thread number.")
     args = parser.parse_args()
     main(args)

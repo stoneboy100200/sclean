@@ -64,12 +64,12 @@ def match_cpu_core(detail):
     detail.apply(lambda row: cpu_core(row['tgid'], row['tid'], row['cpu']), axis = 1)
     return cpu
 
-def gen_thread_graph(data, thread, p_status):
+def gen_pidstat_thread_graph(data, thread, p_status):
     thread_data = filter_process(data)
     tid_data = thread_data[thread_data['tid'] == thread]
     if len(tid_data) != 0:
         fig = plt.figure(figsize = (20, 10))
-        set_line_char_param(tid_data, p_status, "Thread "+thread)
+        set_line_char_param(tid_data, p_status, "Thread "+thread, 'CPU Usage(%)')
         plt.savefig(thread+".jpg", bbox_inches='tight')
 
 
@@ -77,7 +77,7 @@ def gen_data(data, thread, p_status):
     # delete rows that contain 'Average:'
     detail = data[~data.index.isin(['Average:'])]
     if len(thread) != 0:
-        gen_thread_graph(detail, thread, p_status)
+        gen_pidstat_thread_graph(detail, thread, p_status)
     cpu = match_cpu_core(detail)
 
     # get rows that contain 'Average:'
@@ -167,7 +167,7 @@ def sort_by_cpu(data, core):
     data = data.drop(columns=['len'])
     return data
 
-def set_line_char_param(cpu_data, cpu_status, title):
+def set_line_char_param(cpu_data, cpu_status, title, y_label):
     line_color = ['b', 'r', 'g', 'y', 'k', 'c', 'm', 'pink', 'darkred', 'olive', 'lime', 'deeppink']
     line_style = '-'
     x_num = 30
@@ -177,29 +177,27 @@ def set_line_char_param(cpu_data, cpu_status, title):
         x_step = int(len(cpu_data.index) / x_num)
     for i, status in enumerate(cpu_status):
         plt.plot(cpu_data.index, cpu_data[status].astype(float), color = line_color[i], linestyle = line_style)
-    plt.xlabel('Time', fontsize = 12)
-    if title[0:3] == 'CPU':
-        plt.ylabel('CPU Usage(%)', fontsize = 12)
-    else:
-        plt.ylabel('Mem Usage(KB)', fontsize = 12)
 
+    plt.xlabel('Time', fontsize = 12)
+    plt.ylabel(y_label, fontsize = 12)
     plt.xticks(np.arange(0, len(cpu_data.index), x_step), cpu_data.iloc[np.arange(0, len(cpu_data.index), x_step), 0].index, rotation = 25)
     if title[0:3] == 'CPU':
         plt.ylim(0,100)
     plt.legend(cpu_status)
     plt.title(title)
 
-def gen_line_chart(data, core, cpu_status):
+def gen_mpstat_graph(data, core, cpu_status):
     detail = data[~data.index.isin(['Average:'])]
     graph_num = len(core)
     fig = plt.figure(figsize = (20, graph_num*5))
-    plt.subplots_adjust(hspace=0.4)
+    plt.subplots_adjust(hspace = 0.4)
     for i, cpu in enumerate(core):
         cpu_data = detail[detail['cpu'].isin([cpu])]
         if len(cpu_data) != 0:
             subgraph_pos = str(graph_num) + '1' + str(i+1)
             plt.subplot(int(subgraph_pos))
-            set_line_char_param(cpu_data, cpu_status, 'CPU'+cpu)
+            plt.grid(linestyle = '--')
+            set_line_char_param(cpu_data, cpu_status, 'CPU'+cpu, 'CPU Usage(%)')
         else:
             print("[Warning] CPU core is invalid")
 
@@ -236,9 +234,23 @@ def mpstat_process(mpstat_path, core, m_status):
     data = pd.read_csv(file, header=0, index_col=0)
     data.columns = data.columns.map(lambda x:x.lower())
     cpu_status = ['%'+i for i in m_status]
-    gen_line_chart(data, core, cpu_status)
+    gen_mpstat_graph(data, core, cpu_status)
 
-def vmstat_process(vmstat_path, v_status):
+def gen_vmstat_graph(data, v_status, title, y_label):
+    graph_num = len(title)
+    fig = plt.figure(figsize = (20, 10))
+    plt.subplots_adjust(hspace = 0.6)
+    for i, t in enumerate(title):
+        subgraph_pos = str(graph_num) + '1' + str(i+1)
+        plt.subplot(int(subgraph_pos))
+        plt.grid(linestyle = '--')
+        set_line_char_param(data, v_status[i], title[i], y_label[i])
+        if t == 'Memory':
+            plt.axhline(y = 20, c = "black", ls = "--", lw = 1)
+
+    plt.savefig("vmstat.jpg", bbox_inches='tight')
+
+def vmstat_process(vmstat_path, vmstat_mem, vmstat_io, vmstat_system, vmstat_cpu):
     if not os.path.exists(vmstat_path):
         print("[Error] {} does not exist!".format(vmstat_path))
         sys.exit(1)
@@ -248,41 +260,70 @@ def vmstat_process(vmstat_path, v_status):
     file = 'vmstat.csv'
     convert_csv(vmstat_path, file)
     data = pd.read_csv(file, header=0)
-    # print(data)
     data.columns = data.columns.map(lambda x:x.lower())
     v_data = data[data.r.apply(lambda x: x.isnumeric())]
-    # print(v_data)
-    fig = plt.figure(figsize = (20, 10))
-    set_line_char_param(v_data, v_status, 'vmstat')
-    plt.savefig("vmstat.jpg", bbox_inches='tight')
+    v_data = v_data.copy()
+    v_data['swpd'] = v_data['swpd'].map(lambda x: float(x)/1024)
+    v_data['free'] = v_data['free'].map(lambda x: float(x)/1024)
+    v_data['buff'] = v_data['buff'].map(lambda x: float(x)/1024)
+    v_data['cache'] = v_data['cache'].map(lambda x: float(x)/1024)
+
+    title = []
+    v_status = []
+    y_label = []
+    if vmstat_mem:
+        title.append('Memory')
+        v_status.append(['swpd', 'free', 'buff', 'cache'])
+        y_label.append('Mem Usage(M)')
+    if vmstat_io:
+        title.append('IO')
+        v_status.append(['bi', 'bo'])
+        y_label.append('IO Usage(Blocks/s)')
+    if vmstat_system:
+        title.append('System')
+        v_status.append(['in', 'cs'])
+        y_label.append('System Usage(Times/s)')
+    if vmstat_cpu:
+        title.append('CPU')
+        v_status.append(['us', 'sy', 'id', 'wa', 'st'])
+        y_label.append('CPU Usage(%)')
+    gen_vmstat_graph(v_data, v_status, title, y_label)
 
 
 def main(args):
     pidstat_path = args.pidstat
-    mpstat_path = args.mpstat
-    vmstat_path = args.vmstat
-    thread = args.thread
-    core = args.core
-    m_status = args.m_status
     p_status = args.p_status
-    v_status = args.v_status
+    thread = args.thread
+
+    mpstat_path = args.mpstat
+    m_status = args.m_status
+    core = args.core
+
+    vmstat_path = args.vmstat
+    vmstat_mem = args.vmstat_mem
+    vmstat_io = args.vmstat_io
+    vmstat_system = args.vmstat_system
+    vmstat_cpu = args.vmstat_cpu
 
     if len(pidstat_path) != 0:
         pidstat_process(pidstat_path, core, thread, p_status)
     if len(mpstat_path) != 0:
         mpstat_process(mpstat_path, core, m_status)
     if len(vmstat_path) != 0:
-        vmstat_process(vmstat_path, v_status)
+        vmstat_process(vmstat_path, vmstat_mem, vmstat_io, vmstat_system, vmstat_cpu)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="data cleaning tool for pidstat and mpstat.")
-    parser.add_argument("-p", "--pidstat", type=str, default="", help="path of pidstat log.")
-    parser.add_argument("-m", "--mpstat", type=str, default="", help="path of mpstat log.")
-    parser.add_argument("-v", "--vmstat", type=str, default="", help="path of vmstat log.")
-    parser.add_argument("-c", "--core", type=str, default=['0'], nargs='*', help="CPU core.")
-    parser.add_argument("-ms", "--m_status", type=str, default=['usr', 'sys', 'iowait', 'idle'], nargs='*', help="status of mpstat. eg. usr sys idle")
-    parser.add_argument("-ps", "--p_status", type=str, default=['usr', 'system', 'cpu'], nargs='*', help="status of pidstat. eg. usr system")
-    parser.add_argument("-vs", "--v_status", type=str, default=['free', 'buff', 'cache'], nargs='*', help="status of vmstat. eg. free in cs")
-    parser.add_argument("-t", "--thread", type=str, default="", help="thread number.")
+    parser.add_argument("-p", "--pidstat", type=str, default="", help="Path of pidstat log.")
+    parser.add_argument("-m", "--mpstat", type=str, default="", help="Path of mpstat log.")
+    parser.add_argument("-v", "--vmstat", type=str, default="", help="Path of vmstat log.")
+    parser.add_argument("-vm", "--vmstat_mem", action='store_true', default=True, help="Show memory status of vmstat.")
+    parser.add_argument("-vi", "--vmstat_io", action='store_true', default=False, help="Show io status of vmstat.")
+    parser.add_argument("-vs", "--vmstat_system", action='store_true', default=False, help="Show system status of vmstat.")
+    parser.add_argument("-vc", "--vmstat_cpu", action='store_true', default=False, help="Show cpu status of vmstat.")
+    parser.add_argument("-c", "--core", type=str, default=['0'], nargs='*', help="The number of CPU core.")
+    parser.add_argument("-ms", "--m_status", type=str, default=['usr', 'sys', 'iowait', 'idle'], nargs='*', help="The status of mpstat. eg. usr sys idle")
+    parser.add_argument("-ps", "--p_status", type=str, default=['usr', 'system', 'cpu'], nargs='*', help="The status of pidstat. eg. usr system")
+    parser.add_argument("-t", "--thread", type=str, default="", help="The number of thread.")
     args = parser.parse_args()
     main(args)

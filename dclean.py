@@ -11,7 +11,6 @@ from matplotlib import font_manager as fm, rcParams
 
 # compatible with Chinese fonts
 plt.rcParams['font.sans-serif'] = ['SimHei']
-plt.subplots_adjust(hspace = 0.4)
 
 usr_process = ['algorithm_app',
                'data_source_app',
@@ -179,7 +178,11 @@ def set_line_char_param(cpu_data, cpu_status, title):
     for i, status in enumerate(cpu_status):
         plt.plot(cpu_data.index, cpu_data[status].astype(float), color = line_color[i], linestyle = line_style)
     plt.xlabel('Time', fontsize = 12)
-    plt.ylabel('CPU Usage(%)', fontsize = 12)
+    if title[0:3] == 'CPU':
+        plt.ylabel('CPU Usage(%)', fontsize = 12)
+    else:
+        plt.ylabel('Mem Usage(KB)', fontsize = 12)
+
     plt.xticks(np.arange(0, len(cpu_data.index), x_step), cpu_data.iloc[np.arange(0, len(cpu_data.index), x_step), 0].index, rotation = 25)
     if title[0:3] == 'CPU':
         plt.ylim(0,100)
@@ -190,6 +193,7 @@ def gen_line_chart(data, core, cpu_status):
     detail = data[~data.index.isin(['Average:'])]
     graph_num = len(core)
     fig = plt.figure(figsize = (20, graph_num*5))
+    plt.subplots_adjust(hspace=0.4)
     for i, cpu in enumerate(core):
         cpu_data = detail[detail['cpu'].isin([cpu])]
         if len(cpu_data) != 0:

@@ -65,7 +65,7 @@ def match_cpu_core(detail):
     return cpu
 
 def gen_pidstat_thread_graph(data, thread, p_status):
-    thread_data = filter_process(data)
+    thread_data = filter_process(data, p_process)
     tid_data = thread_data[thread_data['tid'] == thread]
     if len(tid_data) != 0:
         fig = plt.figure(figsize = (20, 10))
@@ -343,7 +343,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="data cleaning tool for pidstat and mpstat.")
     parser.add_argument("-p", "--pidstat", type=str, default="", help="Path of pidstat log.")
     parser.add_argument("-ps", "--p_status", type=str, default=['usr', 'system', 'cpu'], nargs='*', help="The status of pidstat. eg. usr system.")
-    parser.add_argument("-pp", "--p_process", type=str, nargs='*', help="The process that needs to be displayed.")
+    parser.add_argument("-pp", "--p_process", type=str, default=[], nargs='*', help="The process that needs to be displayed.")
     parser.add_argument("-m", "--mpstat", type=str, default="", help="Path of mpstat log.")
     parser.add_argument("-ms", "--m_status", type=str, default=['usr', 'sys', 'iowait', 'idle'], nargs='*', help="The status of mpstat. eg. usr sys idle")
     parser.add_argument("-v", "--vmstat", type=str, default="", help="Path of vmstat log.")

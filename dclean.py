@@ -69,7 +69,7 @@ def gen_pidstat_thread_graph(data, thread, p_status):
     tid_data = thread_data[thread_data['tid'] == thread]
     if len(tid_data) != 0:
         fig = plt.figure(figsize = (20, 10))
-        set_line_char_param(tid_data, p_status, "Thread "+thread, 'CPU Usage(%)')
+        set_line_chart_param(tid_data, p_status, "Thread "+thread, 'CPU Usage(%)')
         plt.savefig(thread+".jpg", bbox_inches='tight')
 
 
@@ -114,37 +114,56 @@ def get_graph_data(data):
     y_list3 = round(process['%CPU'], 2)
     return x_list, index, y_list1, y_list2, y_list3
 
-def set_graph_param(data, ax, bar_width, title):
-    x_list, index, y_list1, y_list2, y_list3 = get_graph_data(data)
-    rect1 = ax.bar(index-bar_width, y_list1, bar_width, label='usr')
-    rect2 = ax.bar(index, y_list2, bar_width, label='system')
-    rect3 = ax.bar(index+bar_width, y_list3, bar_width, label='total')
+def set_bar_chart_param(data, ax, title, cpu_status):
+    bar_width=0.2
+    # x_list, index, y_list1, y_list2, y_list3 = get_graph_data(data)
+    # rect1 = ax.bar(index-bar_width, y_list1, bar_width, label='usr')
+    # rect2 = ax.bar(index, y_list2, bar_width, label='system')
+    # rect3 = ax.bar(index+bar_width, y_list3, bar_width, label='total')
+    # print(data)
+    # sys.exit(1)
+    data[cpu_status] = data[cpu_status].astype(float)
+    process = data.groupby(data['process'])[cpu_status].sum()
+    # print(process)
+    # sys.exit(1)
+    x_list = process.index
+    index = np.arange(len(x_list));
+    for i, status in enumerate(cpu_status):
+        y_list = round(process[status], 1)
+        rect = ax.bar(index+bar_width*i, y_list, bar_width, label = status)
+        auto_text(rect, ax)
+
     ax.set_ylabel('CPU Usage(%)')
-    ax.set_xticks(index)
+    ax.set_xticks(index + len(cpu_status)*bar_width/2 - bar_width/2)
     ax.set_xticklabels(x_list, rotation=10)
     ax.set_title(title)
     ax.set_ylim(0, 100)
-    ax.legend(loc='upper right', frameon=False)
-    auto_text(rect1, ax)
-    auto_text(rect2, ax)
-    auto_text(rect3, ax)
+    # ax.legend(loc = 'upper right', frameon = False)
+    ax.legend()
+    # auto_text(rect1, ax)
+    # auto_text(rect2, ax)
+    # auto_text(rect3, ax)
 
-def gen_graph(data_0, data_1, data_2, data_3, data_n):
-    bar_width=0.3
-    fig, (ax0, ax1, ax2, ax3, ax4) = plt.subplots(5, figsize=(12, 20))
+def gen_pidstat_graph(data, cpu_status, title):
+    # fig, (ax0, ax1, ax2, ax3, ax4) = plt.subplots(5, figsize=(12, 20))
+    graph_num = len(title)
+    fig, axs = plt.subplots(graph_num, figsize = (20, graph_num*5))
     plt.subplots_adjust(hspace=0.4)
-    set_graph_param(data_0, ax0, bar_width, 'CPU0')
-    set_graph_param(data_1, ax1, bar_width, 'CPU1')
-    set_graph_param(data_2, ax2, bar_width, 'CPU2')
-    set_graph_param(data_3, ax3, bar_width, 'CPU3')
-    set_graph_param(data_n, ax4, bar_width, 'CPU0~CPU3')
-    plt.savefig("pidstat.png", facecolor="white", bbox_inches='tight')
+    for i, t in enumerate(title):
+        set_bar_chart_param(data[i], axs[i], t, cpu_status)
+    # set_graph_param(data_0, ax0, bar_width, 'CPU0')
+    # set_graph_param(data_1, ax1, bar_width, 'CPU1')
+    # set_graph_param(data_2, ax2, bar_width, 'CPU2')
+    # set_graph_param(data_3, ax3, bar_width, 'CPU3')
+    # set_graph_param(data_n, ax4, bar_width, 'CPU0~CPU3')
+    plt.savefig("pidstat.jpg", bbox_inches = 'tight')
 
 def auto_text(rects, ax):
     for rect in rects:
-        ax.text(rect.get_x(), rect.get_height(), rect.get_height(), ha='left', va='bottom')
+        height = rect.get_height()
+        ax.text(rect.get_x() + rect.get_width()/2, height+0.01*height, rect.get_height(), ha='center', va='bottom', fontsize=10)
 
-def sort_by_cpu(data, core):
+def sort_by_cpu(data, core, cpu_status):
     # add a new column for length of 'CPU'
     data['len'] = data.apply(lambda row: len(row['cpu']), axis = 1)
     data = data.sort_values(by = 'len' , ascending = True)
@@ -155,19 +174,23 @@ def sort_by_cpu(data, core):
     # transform list to str
     data['cpu'] = data['cpu'].apply(lambda row: ','.join(str(i) for i in row))
     cpu_data = []
+    title = []
     for i, cpu in enumerate(core):
         core_data = data[(data['cpu'].isin([cpu])) & (data['len'] == 1)]
         if len(core_data) != 0:
             cpu_data.append(core_data.sort_values(by = ['process', 'tid'], ascending = True))
+            title.append('CPU'+cpu)
 
     cpu_unbound = data.loc[data['len'] != 1].sort_values(by = ['process', 'tid'], ascending = True)
     if len(cpu_unbound) != 0:
         cpu_data.append(cpu_unbound)
+        title.append('CPU_Unbound')
+    gen_pidstat_graph(cpu_data, cpu_status, title)
     data = pd.concat(cpu_data, axis = 0, ignore_index = True)
     data = data.drop(columns=['len'])
     return data
 
-def set_line_char_param(cpu_data, cpu_status, title, y_label):
+def set_line_chart_param(cpu_data, cpu_status, title, y_label):
     line_color = ['b', 'r', 'g', 'y', 'k', 'c', 'm', 'pink', 'darkred', 'olive', 'lime', 'deeppink']
     line_style = '-'
     x_num = 30
@@ -197,7 +220,7 @@ def gen_mpstat_graph(data, core, cpu_status):
             subgraph_pos = str(graph_num) + '1' + str(i+1)
             plt.subplot(int(subgraph_pos))
             plt.grid(linestyle = '--')
-            set_line_char_param(cpu_data, cpu_status, 'CPU'+cpu, 'CPU Usage(%)')
+            set_line_chart_param(cpu_data, cpu_status, 'CPU'+cpu, 'CPU Usage(%)')
         else:
             print("[Warning] CPU core is invalid")
 
@@ -219,7 +242,7 @@ def pidstat_process(pidstat_path, core, thread, p_status):
     add_process(av)
     # remove row of main process
     av = filter_process(av)
-    av = sort_by_cpu(av, core)
+    av = sort_by_cpu(av, core, cpu_status)
     av.to_csv(file, index=False)
 
 def mpstat_process(mpstat_path, core, m_status):
@@ -244,7 +267,7 @@ def gen_vmstat_graph(data, v_status, title, y_label):
         subgraph_pos = str(graph_num) + '1' + str(i+1)
         plt.subplot(int(subgraph_pos))
         plt.grid(linestyle = '--')
-        set_line_char_param(data, v_status[i], title[i], y_label[i])
+        set_line_chart_param(data, v_status[i], title[i], y_label[i])
         if t == 'Memory':
             plt.axhline(y = 20, c = "black", ls = "--", lw = 1)
 

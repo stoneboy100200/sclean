@@ -99,9 +99,10 @@ def add_process(data):
         return process
     data['process'] = data.apply(lambda row: get_process(row['tgid'], row['command']), axis = 1)
 
-def filter_process(data):
+def filter_process(data, p_process):
     data = data[data['tgid'].isin(['-'])]
-    # data = data[data['process'].isin(usr_process)]
+    if len(p_process) != 0:
+        data = data[data['process'].isin(p_process)]
     return data
 
 def get_graph_data(data):
@@ -226,7 +227,7 @@ def gen_mpstat_graph(data, core, cpu_status):
 
     plt.savefig("mpstat.jpg", bbox_inches='tight')
 
-def pidstat_process(pidstat_path, core, thread, p_status):
+def pidstat_process(pidstat_path, core, thread, p_status, p_process):
     if not os.path.exists(pidstat_path):
         print("[Error] {} does not exist!".format(pidstat_path))
         sys.exit(1)
@@ -241,7 +242,7 @@ def pidstat_process(pidstat_path, core, thread, p_status):
     av = gen_data(data, thread, cpu_status)
     add_process(av)
     # remove row of main process
-    av = filter_process(av)
+    av = filter_process(av, p_process)
     av = sort_by_cpu(av, core, cpu_status)
     av.to_csv(file, index=False)
 
@@ -316,6 +317,9 @@ def vmstat_process(vmstat_path, vmstat_mem, vmstat_io, vmstat_system, vmstat_cpu
 def main(args):
     pidstat_path = args.pidstat
     p_status = args.p_status
+    p_process = args.p_process
+    # if len(p_process) != 0:
+    #     print('process is ...{}'.format(p_process))
     thread = args.thread
 
     mpstat_path = args.mpstat
@@ -329,7 +333,7 @@ def main(args):
     vmstat_cpu = args.vmstat_cpu
 
     if len(pidstat_path) != 0:
-        pidstat_process(pidstat_path, core, thread, p_status)
+        pidstat_process(pidstat_path, core, thread, p_status, p_process)
     if len(mpstat_path) != 0:
         mpstat_process(mpstat_path, core, m_status)
     if len(vmstat_path) != 0:
@@ -338,15 +342,16 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="data cleaning tool for pidstat and mpstat.")
     parser.add_argument("-p", "--pidstat", type=str, default="", help="Path of pidstat log.")
+    parser.add_argument("-ps", "--p_status", type=str, default=['usr', 'system', 'cpu'], nargs='*', help="The status of pidstat. eg. usr system.")
+    parser.add_argument("-pp", "--p_process", type=str, nargs='*', help="The process that needs to be displayed.")
     parser.add_argument("-m", "--mpstat", type=str, default="", help="Path of mpstat log.")
+    parser.add_argument("-ms", "--m_status", type=str, default=['usr', 'sys', 'iowait', 'idle'], nargs='*', help="The status of mpstat. eg. usr sys idle")
     parser.add_argument("-v", "--vmstat", type=str, default="", help="Path of vmstat log.")
     parser.add_argument("-vm", "--vmstat_mem", action='store_true', default=True, help="Show memory status of vmstat.")
     parser.add_argument("-vi", "--vmstat_io", action='store_true', default=False, help="Show io status of vmstat.")
     parser.add_argument("-vs", "--vmstat_system", action='store_true', default=False, help="Show system status of vmstat.")
     parser.add_argument("-vc", "--vmstat_cpu", action='store_true', default=False, help="Show cpu status of vmstat.")
     parser.add_argument("-c", "--core", type=str, default=['0'], nargs='*', help="The number of CPU core.")
-    parser.add_argument("-ms", "--m_status", type=str, default=['usr', 'sys', 'iowait', 'idle'], nargs='*', help="The status of mpstat. eg. usr sys idle")
-    parser.add_argument("-ps", "--p_status", type=str, default=['usr', 'system', 'cpu'], nargs='*', help="The status of pidstat. eg. usr system")
     parser.add_argument("-t", "--thread", type=str, default="", help="The number of thread.")
     args = parser.parse_args()
     main(args)

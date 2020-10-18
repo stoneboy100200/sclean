@@ -8,6 +8,8 @@ import os
 import time
 import sys
 from matplotlib import font_manager as fm, rcParams
+import plotly
+import plotly.express as px
 
 # compatible with Chinese fonts
 plt.rcParams['font.sans-serif'] = ['SimHei']
@@ -117,16 +119,8 @@ def get_graph_data(data):
 
 def set_bar_chart_param(data, ax, title, cpu_status):
     bar_width=0.2
-    # x_list, index, y_list1, y_list2, y_list3 = get_graph_data(data)
-    # rect1 = ax.bar(index-bar_width, y_list1, bar_width, label='usr')
-    # rect2 = ax.bar(index, y_list2, bar_width, label='system')
-    # rect3 = ax.bar(index+bar_width, y_list3, bar_width, label='total')
-    # print(data)
-    # sys.exit(1)
     data[cpu_status] = data[cpu_status].astype(float)
     process = data.groupby(data['process'])[cpu_status].sum()
-    # print(process)
-    # sys.exit(1)
     x_list = process.index
     index = np.arange(len(x_list));
     for i, status in enumerate(cpu_status):
@@ -139,24 +133,14 @@ def set_bar_chart_param(data, ax, title, cpu_status):
     ax.set_xticklabels(x_list, rotation=10)
     ax.set_title(title)
     ax.set_ylim(0, 100)
-    # ax.legend(loc = 'upper right', frameon = False)
     ax.legend()
-    # auto_text(rect1, ax)
-    # auto_text(rect2, ax)
-    # auto_text(rect3, ax)
 
 def gen_pidstat_graph(data, cpu_status, title):
-    # fig, (ax0, ax1, ax2, ax3, ax4) = plt.subplots(5, figsize=(12, 20))
     graph_num = len(title)
     fig, axs = plt.subplots(graph_num, figsize = (20, graph_num*5))
     plt.subplots_adjust(hspace=0.4)
     for i, t in enumerate(title):
         set_bar_chart_param(data[i], axs[i], t, cpu_status)
-    # set_graph_param(data_0, ax0, bar_width, 'CPU0')
-    # set_graph_param(data_1, ax1, bar_width, 'CPU1')
-    # set_graph_param(data_2, ax2, bar_width, 'CPU2')
-    # set_graph_param(data_3, ax3, bar_width, 'CPU3')
-    # set_graph_param(data_n, ax4, bar_width, 'CPU0~CPU3')
     plt.savefig("pidstat.jpg", bbox_inches = 'tight')
 
 def auto_text(rects, ax):
@@ -227,6 +211,13 @@ def gen_mpstat_graph(data, core, cpu_status):
 
     plt.savefig("mpstat.jpg", bbox_inches='tight')
 
+def gen_sunburst_graph(data):
+    data['command']=data['command'].map(lambda x: x[3:] if x[0:3]=='|__' else x)
+    data['%cpu']=data['%cpu'].map(lambda x: str(x)+'%')
+    fig = px.sunburst(data, path = ['cpu', 'process', 'command', 'tid', '%cpu'])
+    fig.update_layout()
+    plotly.offline.plot(fig, filename = 'pidstat_sunburst.html')
+
 def pidstat_process(pidstat_path, core, thread, p_status, p_process):
     if not os.path.exists(pidstat_path):
         print("[Error] {} does not exist!".format(pidstat_path))
@@ -244,6 +235,7 @@ def pidstat_process(pidstat_path, core, thread, p_status, p_process):
     # remove row of main process
     av = filter_process(av, p_process)
     av = sort_by_cpu(av, core, cpu_status)
+    gen_sunburst_graph(av)
     av.to_csv(file, index=False)
 
 def mpstat_process(mpstat_path, core, m_status):

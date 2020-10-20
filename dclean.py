@@ -66,7 +66,7 @@ def match_cpu_core(detail):
     detail.apply(lambda row: cpu_core(row['tgid'], row['tid'], row['cpu']), axis = 1)
     return cpu
 
-def gen_pidstat_thread_graph(data, thread, p_status):
+def gen_pidstat_thread_graph(data, thread, p_status, p_process):
     thread_data = filter_process(data, p_process)
     tid_data = thread_data[thread_data['tid'] == thread]
     if len(tid_data) != 0:
@@ -75,11 +75,11 @@ def gen_pidstat_thread_graph(data, thread, p_status):
         plt.savefig(thread+".jpg", bbox_inches='tight')
 
 
-def gen_data(data, thread, p_status):
+def gen_data(data, thread, p_status, p_process):
     # delete rows that contain 'Average:'
     detail = data[~data.index.isin(['Average:'])]
     if len(thread) != 0:
-        gen_pidstat_thread_graph(detail, thread, p_status)
+        gen_pidstat_thread_graph(detail, thread, p_status, p_process)
     cpu = match_cpu_core(detail)
 
     # get rows that contain 'Average:'
@@ -230,7 +230,7 @@ def pidstat_process(pidstat_path, core, thread, p_status, p_process):
     data = pd.read_csv(file, header=0, index_col=0)
     data.columns = data.columns.map(lambda x:x.lower())
     cpu_status = ['%'+i for i in p_status]
-    av = gen_data(data, thread, cpu_status)
+    av = gen_data(data, thread, cpu_status, p_process)
     add_process(av)
     # remove row of main process
     av = filter_process(av, p_process)

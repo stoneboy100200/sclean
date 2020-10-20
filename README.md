@@ -96,7 +96,7 @@ python sclean.py -p example/log/pidstat.log
 
 这条命令默认会针对第一个 CPU 核（CPU0）以及绑定了多个 CPU 核或者未绑定 CPU 核（表象是这支线程会在多个 CPU 核上运行）的所有线程 CPU 性能进行分析。运行结束后会生成三个文件：pidstat.jpg，pidstat.csv，pidstat_sunburst.html。
 
-pidstat.jpg 是针对指定 CPU 核上所有进程生成的柱状图，默认统计这段时间内用户态 CPU 使用率（%usr），内核态 CPU 使用率（%system），以及总 CPU 使用率（%CPU）的平均值。如下图：
+***pidstat.jpg*** 是针对指定 CPU 核上所有进程生成的柱状图，默认统计这段时间内用户态 CPU 使用率（%usr），内核态 CPU 使用率（%system），以及总 CPU 使用率（%CPU）的平均值。如下图：
 <div align=center><img src="./example/pidstat/pidstat.jpg" width="800"></div>
 
 如果想看 pidstat 的其他指标可通过参数 “-ps” 指定，如果想指定 CPU 核可通过 “-c” 指定：
@@ -105,7 +105,7 @@ python sclean.py -p example/log/pidstat.log -c 0 1 2 3 -ps guest usr system cpu
 ```
 上面这条命令指定 CPU0，CPU1，CPU2，CPU3 四个 CPU 核，并显示指定的这四个指标：%guest，%usr，%system，%CPU。
 
-pidstat_sunburst.html 是一个旭日图，它显示指定 CPU 核内每个线程的 CPU 使用情况（%CPU）：
+***pidstat_sunburst.html*** 是一个旭日图，它显示指定 CPU 核内每个线程的 CPU 使用情况（%CPU）：
 <div align=center><img src="./example/pidstat/sunburst.gif" width="600"></div>
 
 - 其中最内圈表示表示第几个 CPU 核，如 “0” 表示运行在 CPU0 上的所有进程/线程；“0,1,2,3”表示运行在 CPU0，CPU1，CPU2，CPU3 上的所有进程/线程；
@@ -115,7 +115,7 @@ pidstat_sunburst.html 是一个旭日图，它显示指定 CPU 核内每个线�
 - 从内向外数第五圈，也就是最外圈表示这支线程在这段时间内 CPU 使用率（%CPU）；
 - 每个核上有哪些进程，每支进程包含哪些线程，每支线程的线程号都通过圈内半径线区分；
 
-pidstat.csv 文件详细记录各个系统所有线程的 CPU 使用情况：
+***pidstat.csv*** 文件详细记录各个系统所有线程的 CPU 使用情况：
 <div align=center><img src="./example/pidstat/pidstat_detail.png" width="600"></div>
 其中 command 列表示线程名，tid 表示线程号，跟 pidstat 的输出是一致的。
 

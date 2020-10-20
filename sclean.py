@@ -12,18 +12,9 @@ import plotly
 import plotly.express as px
 
 # compatible with Chinese fonts
-plt.rcParams['font.sans-serif'] = ['SimHei']
+plt.rcParams['font.sans-serif'] = 'SimHei'
+plt.rcParams['axes.unicode_minus'] = False
 
-usr_process = ['algorithm_app',
-               'data_source_app',
-               'MCSApp',
-               'MCenter',
-               'cali_upload',
-               'jt_app',
-               'main.out',
-               'storage.out',
-               'MTransferCenter',
-               'test_tuning']
 
 def convert_csv(path, file):
     # remove the first line to avoid converting error (not utf8)
@@ -35,25 +26,6 @@ def convert_csv(path, file):
             for line in filein:
                 line_list = line.strip('\n').split()
                 csv_file.writerow(line_list)
-
-# def check_file_charset(file):
-#     with open(file,'rb') as f:
-#         return chardet.detect(f.read())
-#     return {}
-
-# def to_utf8(file):
-#     f_type = check_file_charset(file)
-#     print("file type: {}".format(f_type))
-#     if f_type and 'encoding' in f_type.keys() and f_type['encoding'] != 'utf-8':
-#         try:
-#             with codecs.open(file, 'rb', f_type['encoding']) as f:
-#                 content = smart_text(f.read())
-#             with codecs.open(file, 'wb', 'utf-8') as f:
-#                 f.write(content)
-#         except:
-#             print("[Error]: failed to convert to utf8!")
-#             pass
-
 
 def match_cpu_core(detail):
     cpu = {}
@@ -169,7 +141,7 @@ def sort_by_cpu(data, core, cpu_status):
     cpu_unbound = data.loc[data['len'] != 1].sort_values(by = ['process', 'tid'], ascending = True)
     if len(cpu_unbound) != 0:
         cpu_data.append(cpu_unbound)
-        title.append('CPU_Unbound')
+        title.append('Other_CPU')
     gen_pidstat_graph(cpu_data, cpu_status, title)
     data = pd.concat(cpu_data, axis = 0, ignore_index = True)
     data = data.drop(columns=['len'])
@@ -189,7 +161,7 @@ def set_line_chart_param(cpu_data, cpu_status, title, y_label):
     plt.xlabel('Time', fontsize = 12)
     plt.ylabel(y_label, fontsize = 12)
     plt.xticks(np.arange(0, len(cpu_data.index), x_step), cpu_data.iloc[np.arange(0, len(cpu_data.index), x_step), 0].index, rotation = 25)
-    if title[0:3] == 'CPU':
+    if title[0:3] == 'CPU' or title[0:6] == 'Thread':
         plt.ylim(0,100)
     plt.legend(cpu_status)
     plt.title(title)
@@ -310,8 +282,6 @@ def main(args):
     pidstat_path = args.pidstat
     p_status = args.p_status
     p_process = args.p_process
-    # if len(p_process) != 0:
-    #     print('process is ...{}'.format(p_process))
     thread = args.thread
 
     mpstat_path = args.mpstat

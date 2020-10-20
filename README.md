@@ -108,7 +108,7 @@ python sclean.py -p example/log/pidstat.log -c 0 1 2 3 -ps guest usr system cpu
 ***pidstat_sunburst.html*** 是一个旭日图，它显示指定 CPU 核内每个线程的 CPU 使用情况（%CPU）：
 <div align=center><img src="./example/pidstat/sunburst.gif" width="600"></div>
 
-- 其中最内圈表示表示第几个 CPU 核，如 “0” 表示运行在 CPU0 上的所有进程/线程；“0,1,2,3”表示运行在 CPU0，CPU1，CPU2，CPU3 上的所有进程/线程；
+- 其中最内圈表示表示第几个 CPU 核，如 “0” 表示运行在 CPU0 上的所有进程/线程；“0,1,2,3”表示运行在 CPU0，CPU1，CPU2，CPU3 上的所有进程/线程（意思是这支线程要么绑定在 CPU0，CPU1，CPU2，CPU3 这四个核上，要么没绑核，会在 CPU0，CPU1，CPU2，CPU3 这四个核上浮动）；
 - 从内向外数第二圈表示进程名；
 - 从内向外数第三圈表示线程名；
 - 从内向外数第四圈表示线程号；

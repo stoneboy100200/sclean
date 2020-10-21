@@ -38,20 +38,21 @@ def match_cpu_core(detail):
     detail.apply(lambda row: cpu_core(row['tgid'], row['tid'], row['cpu']), axis = 1)
     return cpu
 
-def gen_pidstat_thread_graph(data, thread, p_status, p_process):
+def gen_pidstat_thread_graph(data, thread, p_status, p_process, output):
     thread_data = filter_process(data, p_process)
     tid_data = thread_data[thread_data['tid'] == thread]
     if len(tid_data) != 0:
         fig = plt.figure(figsize = (20, 10))
         set_line_chart_param(tid_data, p_status, "Thread "+thread, 'CPU Usage(%)')
-        plt.savefig(thread+".jpg", bbox_inches='tight')
+        plt.savefig(output + "/" + thread+".jpg", bbox_inches='tight')
+        # sys.exit(0)
 
 
-def gen_data(data, thread, p_status, p_process):
+def gen_data(data, thread, p_status, p_process, output):
     # delete rows that contain 'Average:'
     detail = data[~data.index.isin(['Average:'])]
     if len(thread) != 0:
-        gen_pidstat_thread_graph(detail, thread, p_status, p_process)
+        gen_pidstat_thread_graph(detail, thread, p_status, p_process, output)
     cpu = match_cpu_core(detail)
 
     # get rows that contain 'Average:'
@@ -107,20 +108,20 @@ def set_bar_chart_param(data, ax, title, cpu_status):
     ax.set_ylim(0, 100)
     ax.legend()
 
-def gen_pidstat_graph(data, cpu_status, title):
+def gen_pidstat_graph(data, cpu_status, title, output):
     graph_num = len(title)
     fig, axs = plt.subplots(graph_num, figsize = (20, graph_num*5))
     plt.subplots_adjust(hspace=0.4)
     for i, t in enumerate(title):
         set_bar_chart_param(data[i], axs[i], t, cpu_status)
-    plt.savefig("pidstat.jpg", bbox_inches = 'tight')
+    plt.savefig(output + "/pidstat.jpg", bbox_inches = 'tight')
 
 def auto_text(rects, ax):
     for rect in rects:
         height = rect.get_height()
         ax.text(rect.get_x() + rect.get_width()/2, height+0.01*height, rect.get_height(), ha='center', va='bottom', fontsize=10)
 
-def sort_by_cpu(data, core, cpu_status):
+def sort_by_cpu(data, core, cpu_status, output):
     # add a new column for length of 'CPU'
     data['len'] = data.apply(lambda row: len(row['cpu']), axis = 1)
     data = data.sort_values(by = 'len' , ascending = True)
@@ -142,7 +143,7 @@ def sort_by_cpu(data, core, cpu_status):
     if len(cpu_unbound) != 0:
         cpu_data.append(cpu_unbound)
         title.append('Other_CPU')
-    gen_pidstat_graph(cpu_data, cpu_status, title)
+    gen_pidstat_graph(cpu_data, cpu_status, title, output)
     data = pd.concat(cpu_data, axis = 0, ignore_index = True)
     data = data.drop(columns=['len'])
     return data
@@ -166,7 +167,7 @@ def set_line_chart_param(cpu_data, cpu_status, title, y_label):
     plt.legend(cpu_status)
     plt.title(title)
 
-def gen_mpstat_graph(data, core, cpu_status):
+def gen_mpstat_graph(data, core, cpu_status, output):
     detail = data[~data.index.isin(['Average:'])]
     graph_num = len(core)
     fig = plt.figure(figsize = (20, graph_num*5))
@@ -181,16 +182,16 @@ def gen_mpstat_graph(data, core, cpu_status):
         else:
             print("[Warning] CPU core is invalid")
 
-    plt.savefig("mpstat.jpg", bbox_inches='tight')
+    plt.savefig(output + "/mpstat.jpg", bbox_inches='tight')
 
-def gen_sunburst_graph(data):
+def gen_sunburst_graph(data, output):
     data['command']=data['command'].map(lambda x: x[3:] if x[0:3]=='|__' else x)
     data['%cpu']=data['%cpu'].map(lambda x: str(x)+'%')
     fig = px.sunburst(data, path = ['cpu', 'process', 'command', 'tid', '%cpu'])
     fig.update_layout()
-    plotly.offline.plot(fig, filename = 'pidstat_sunburst.html')
+    plotly.offline.plot(fig, filename = output + '/pidstat_sunburst.html')
 
-def pidstat_process(pidstat_path, core, thread, p_status, p_process):
+def pidstat_process(pidstat_path, core, thread, p_status, p_process, output):
     if not os.path.exists(pidstat_path):
         print("[Error] {} does not exist!".format(pidstat_path))
         sys.exit(1)
@@ -198,19 +199,19 @@ def pidstat_process(pidstat_path, core, thread, p_status, p_process):
 
     # convert to csv file
     file = 'pidstat.csv'
-    convert_csv(pidstat_path, file)
-    data = pd.read_csv(file, header=0, index_col=0)
+    convert_csv(pidstat_path, output + '/' + file)
+    data = pd.read_csv(output + '/' + file, header=0, index_col=0)
     data.columns = data.columns.map(lambda x:x.lower())
     cpu_status = ['%'+i for i in p_status]
-    av = gen_data(data, thread, cpu_status, p_process)
+    av = gen_data(data, thread, cpu_status, p_process, output)
     add_process(av)
     # remove row of main process
     av = filter_process(av, p_process)
-    av = sort_by_cpu(av, core, cpu_status)
-    gen_sunburst_graph(av)
-    av.to_csv(file, index=False)
+    av = sort_by_cpu(av, core, cpu_status, output)
+    gen_sunburst_graph(av, output)
+    av.to_csv(output + '/' + file, index=False)
 
-def mpstat_process(mpstat_path, core, m_status):
+def mpstat_process(mpstat_path, core, m_status, output):
     if not os.path.exists(mpstat_path):
         print("[Error] {} does not exist!".format(mpstat_path))
         sys.exit(1)
@@ -218,13 +219,13 @@ def mpstat_process(mpstat_path, core, m_status):
 
     # convert to csv file
     file = 'mpstat.csv'
-    convert_csv(mpstat_path, file)
-    data = pd.read_csv(file, header=0, index_col=0)
+    convert_csv(mpstat_path, output + '/' + file)
+    data = pd.read_csv(output + '/' + file, header=0, index_col=0)
     data.columns = data.columns.map(lambda x:x.lower())
     cpu_status = ['%'+i for i in m_status]
-    gen_mpstat_graph(data, core, cpu_status)
+    gen_mpstat_graph(data, core, cpu_status, output)
 
-def gen_vmstat_graph(data, v_status, title, y_label):
+def gen_vmstat_graph(data, v_status, title, y_label, output):
     graph_num = len(title)
     fig = plt.figure(figsize = (20, 10))
     plt.subplots_adjust(hspace = 0.6)
@@ -236,9 +237,9 @@ def gen_vmstat_graph(data, v_status, title, y_label):
         if t == 'Memory':
             plt.axhline(y = 20, c = "black", ls = "--", lw = 1)
 
-    plt.savefig("vmstat.jpg", bbox_inches='tight')
+    plt.savefig(output + "/vmstat.jpg", bbox_inches='tight')
 
-def vmstat_process(vmstat_path, vmstat_mem, vmstat_io, vmstat_system, vmstat_cpu):
+def vmstat_process(vmstat_path, vmstat_mem, vmstat_io, vmstat_system, vmstat_cpu, output):
     if not os.path.exists(vmstat_path):
         print("[Error] {} does not exist!".format(vmstat_path))
         sys.exit(1)
@@ -246,8 +247,8 @@ def vmstat_process(vmstat_path, vmstat_mem, vmstat_io, vmstat_system, vmstat_cpu
 
     # convert to csv file
     file = 'vmstat.csv'
-    convert_csv(vmstat_path, file)
-    data = pd.read_csv(file, header=0)
+    convert_csv(vmstat_path, output + '/' + file)
+    data = pd.read_csv(output + '/' + file, header=0)
     data.columns = data.columns.map(lambda x:x.lower())
     v_data = data[data.r.apply(lambda x: x.isnumeric())]
     v_data = v_data.copy()
@@ -275,7 +276,7 @@ def vmstat_process(vmstat_path, vmstat_mem, vmstat_io, vmstat_system, vmstat_cpu
         title.append('CPU')
         v_status.append(['us', 'sy', 'id', 'wa', 'st'])
         y_label.append('CPU Usage(%)')
-    gen_vmstat_graph(v_data, v_status, title, y_label)
+    gen_vmstat_graph(v_data, v_status, title, y_label, output)
 
 
 def main(args):
@@ -286,7 +287,6 @@ def main(args):
 
     mpstat_path = args.mpstat
     m_status = args.m_status
-    core = args.core
 
     vmstat_path = args.vmstat
     vmstat_mem = args.vmstat_mem
@@ -294,12 +294,23 @@ def main(args):
     vmstat_system = args.vmstat_system
     vmstat_cpu = args.vmstat_cpu
 
+    core = args.core
+    output = args.output
+
+    if len(output) == 0:
+        output = os.getcwd()
+    else:
+        if not os.path.exists(output):
+            print("[Error] {} does not exist!".format(output))
+            sys.exit(1)
+    print("output={}".format(output))
+
     if len(pidstat_path) != 0:
-        pidstat_process(pidstat_path, core, thread, p_status, p_process)
+        pidstat_process(pidstat_path, core, thread, p_status, p_process, output)
     if len(mpstat_path) != 0:
-        mpstat_process(mpstat_path, core, m_status)
+        mpstat_process(mpstat_path, core, m_status, output)
     if len(vmstat_path) != 0:
-        vmstat_process(vmstat_path, vmstat_mem, vmstat_io, vmstat_system, vmstat_cpu)
+        vmstat_process(vmstat_path, vmstat_mem, vmstat_io, vmstat_system, vmstat_cpu, output)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="data cleaning tool for pidstat and mpstat.")
@@ -315,5 +326,6 @@ if __name__ == "__main__":
     parser.add_argument("-vc", "--vmstat_cpu", action='store_true', default=False, help="Show cpu status of vmstat.")
     parser.add_argument("-c", "--core", type=str, default=['0'], nargs='*', help="The number of CPU core.")
     parser.add_argument("-t", "--thread", type=str, default="", help="The number of thread.")
+    parser.add_argument("-o", "--output", type=str, default="", help="Path of output.")
     args = parser.parse_args()
     main(args)

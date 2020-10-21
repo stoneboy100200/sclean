@@ -3,6 +3,7 @@ SClean 是一个针对 Linux 下 sysstat 工具中各种套件的输出做数据
 
 ## 目录
 - [背景](#背景)
+- [使用场景](#使用场景)
 - [安装](#安装)
 - [用法](#用法)
 - [维护者](#维护者)
@@ -77,7 +78,7 @@ $ pidstat -t interval count  // interval 为时间间隔，count 为次数
 
 假设你已经有了一份基于 pidstat 产生的 log：pidstat.log，注意 pidstat 必须录入到它结束，正常结束或者 ctrl+C 结束都可以，结束后的 log 会统计这段时间的平均值。以下是个示例：
 ```
-$ pidstat -t 1 1
+$ pidstat -t 5 360 > pidstat.log
 ```
 ```
 Linux 4.15.0-112-generic (m2133)        2020年10月20日  _x86_64_        (12 CPU)
@@ -133,6 +134,11 @@ python sclean.py -p example/log/pidstat.log -t 749
 <div align=center><img src="./example/pidstat/749.jpg" width="800"></div>
 
 ### mpstat
+mpstat 的 log 录制可以使用如下命令：
+```
+mpstat -P ALL 5 360 > mpstat.log // 每隔 5s 输出一次，一共记录 360 次，也就是会录制半小时的 log
+```
+
 运行：
 ```
 python sclean.py -m example/log/mpstat.log -c 0 1 2 3
@@ -151,6 +157,11 @@ python sclean.py -m example/log/mpstat.log -c 0 1 2 3 -ms usr nice irq soft
 这条命令指定了这几个 CPU 指标：%usr，%nice，%irq，%soft。
 
 ### vmstat
+vmstat 的 log 录制可以使用如下命令：
+```
+vmstat 5 360 > vmstat.log // 每隔 5s 输出一次，一共记录 360 次，也就是会录制半小时的 log
+```
+
 运行：
 ```
 python sclean.py -v example/log/vmstat.log

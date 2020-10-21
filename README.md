@@ -116,11 +116,11 @@ python sclean.py -p example/log/pidstat.log -c 0 1 2 3 -ps guest usr system cpu
 ***pidstat_sunburst.html*** 是一个旭日图，它显示指定 CPU 核内每个线程的 CPU 使用情况（%CPU）：
 <div align=center><img src="./example/pidstat/sunburst.gif" width="600"></div>
 
-- 其中最内圈表示表示第几个 CPU 核，如 “0” 表示仅运行在 CPU0 核上的所有进程/线程；“0,1,2,3”表示运行在 CPU0，CPU1，CPU2，CPU3 上的所有进程/线程（意思是这支线程要么绑定在 CPU0，CPU1，CPU2，CPU3 这四个核上；要么没绑核，可能会在 CPU0，CPU1，CPU2，CPU3 这四个核上浮动）；
-- 从内向外数第二圈表示进程名；
-- 从内向外数第三圈表示线程名；
-- 从内向外数第四圈表示线程号；
 - 从内向外数第五圈，也就是最外圈表示这支线程在这段时间内 CPU 使用率（%CPU）；
+- 从内向外数第四圈表示线程号；
+- 从内向外数第三圈表示线程名，线程名在不同核是有可能相同的，比如一个共享库创建的线程；
+- 从内向外数第二圈表示第三圈线程所属的进程名，这一圈可能有同名的进程，这支进程内的线程可能绑在了不同的核上，归类时会划分到同一个进程；
+- 最内圈表示表示第几个 CPU 核，如 “0” 表示仅运行在 CPU0 核上的所有进程/线程；“0,1,2,3”表示运行在 CPU0，CPU1，CPU2，CPU3 上的所有进程/线程（意思是这支线程要么绑定在 CPU0，CPU1，CPU2，CPU3 这四个核上；要么没绑核，会在 CPU0，CPU1，CPU2，CPU3 这四个核上浮动）；
 - 每个核上有哪些进程，每支进程包含哪些线程，每支线程的线程号都通过圈内半径线区分；
 
 ***pidstat.csv*** 文件详细记录各个系统所有线程的 CPU 使用情况：
@@ -132,6 +132,14 @@ python sclean.py -p example/log/pidstat.log -c 0 1 2 3 -ps guest usr system cpu
 python sclean.py -p example/log/pidstat.log -t 749
 ```
 <div align=center><img src="./example/pidstat/749.jpg" width="800"></div>
+
+如果只想显示自己关注进程的 CPU 状况，可使用 “-pp” 参数：
+```
+python sclean.py -p example/log/pidstat.log -c 0 1 2 3 -pp rss cnn rnn rbm
+```
+这条命令只关注这几支进程：rss cnn rnn rbm
+
+<div align=center><img src="./example/pidstat/sunburst_filter_process.gif" width="600"></div>
 
 ### mpstat
 mpstat 的 log 录制可以使用如下命令：
@@ -167,7 +175,7 @@ vmstat 5 360 > vmstat.log // 每隔 5s 输出一次，一共记录 360 次，也
 python sclean.py -v example/log/vmstat.log
 ```
 
-这条命令默认显示这段时间内的 Memory 使用状况。
+这条命令默认显示这段时间内的 Memory 使用状况。下图中有一根虚线，设定值是 20 M，可以辅助看曲线是否有触及这根线。
 <div align=center><img src="./example/vmstat/vmstat.jpg" width="800"></div>
 
 当然 vmstat 上有的指标都能显示：

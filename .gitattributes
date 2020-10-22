@@ -1,0 +1,4 @@
+*.log linguist-language=python
+*.py linguist-language=python
+*.html linguist-language=python
+*.txt linguist-language=python

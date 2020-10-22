@@ -125,7 +125,7 @@ python sclean.py -p example/log/pidstat.log -c 0 1 2 3 -ps guest usr system cpu
 
 ***pidstat.csv*** 文件详细记录各个系统所有线程的 CPU 使用情况：
 <div align=center><img src="./example/pidstat/pidstat_detail.png" width="600"></div>
-其中 command 列表示线程名，tid 表示线程号，跟 pidstat 的输出是一致的。进程名用 process 表示。
+其中 command 列表示线程名，tid 表示线程号，跟 pidstat 的输出是一致的。线程所属的进程用 process 表示，cpu 表示对应的线程运行在第几个 CPU 核，tgid 这一列已经被过滤掉了，显示为 “-”，因为我们主要关注的是线程。
 
 如果想进一步查看某支线程在这段时间内 CPU 使用情况的曲线变化图，可使用 ”-t” 参数：
 ```

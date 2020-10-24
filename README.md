@@ -76,7 +76,7 @@ SClean 是对 sysstat 工具的输出做数据清洗，因此在使用之前必�
 $ pidstat -t interval count  // interval 为时间间隔，count 为次数
 ```
 
-假设你已经有了一份基于 pidstat 产生的 log：pidstat.log，注意 pidstat 必须录入到它结束，正常结束或者 ctrl+C 结束都可以，结束后的 log 会统计这段时间的平均值。以下是个示例：
+假设你已经有了一份基于 pidstat 产生的 log：pidstat.log，注意 pidstat 必须录入到它正常结束，结束后的 log 会统计这段时间的平均值，SClean 也是对平均值做数据清洗。以下是个示例：
 ```
 $ pidstat -t 5 360 > pidstat.log
 ```
@@ -123,7 +123,7 @@ python sclean.py -p example/log/pidstat.log -c 0 1 2 3 -ps guest usr system cpu
 - 最内圈表示表示第几个 CPU 核，如 “0” 表示仅运行在 CPU0 核上的所有进程/线程；“0,1,2,3”表示运行在 CPU0，CPU1，CPU2，CPU3 上的所有进程/线程（意思是这支线程要么绑定在 CPU0，CPU1，CPU2，CPU3 这四个核上；要么没绑核，会在 CPU0，CPU1，CPU2，CPU3 这四个核上浮动）；
 - 每个核上有哪些进程，每支进程包含哪些线程，每支线程的线程号都通过圈内半径线区分；
 
-***pidstat.csv*** 文件详细记录各个系统所有线程的 CPU 使用情况：
+***pidstat.csv*** 文件详细记录系统内所有线程的 CPU 使用情况：
 <div align=center><img src="./example/pidstat/pidstat_detail.png" width="600"></div>
 其中 command 列表示线程名，tid 表示线程号，跟 pidstat 的输出是一致的。线程所属的进程用 process 表示，cpu 表示对应的线程运行在第几个 CPU 核，tgid 这一列已经被过滤掉了，显示为 “-”，因为我们主要关注的是线程。
 

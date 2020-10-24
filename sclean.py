@@ -169,6 +169,20 @@ def set_line_chart_param(cpu_data, cpu_status, title, y_label):
 
 def gen_mpstat_graph(data, core, cpu_status, output):
     detail = data[~data.index.isin(['Average:'])]
+    # print(detail.dtypes)
+    # print(detail.iloc[:, 2:])
+    # detail['%usr', '%nice'] = pd.to_numeric(detail['%usr', '%nice'], errors='coerce')
+    # detail[['%usr', '%nice']] = detail[['%usr', '%nice']].astype(float)
+    # detail.apply(pd.to_numeric, errors='coerce')
+    detail = detail.apply(pd.to_numeric, errors='ignore')
+    # print(detail.dtypes)
+    
+    
+    cpu_av = round(detail.groupby('cpu').agg('mean'), 2)
+    # print(cpu_av)
+    # print(cpu_av.style.bar())
+    cpu_av.to_csv(output + '/' + 'test.csv')
+
     graph_num = len(core)
     fig = plt.figure(figsize = (20, graph_num*5))
     plt.subplots_adjust(hspace = 0.4)
@@ -222,6 +236,9 @@ def mpstat_process(mpstat_path, core, m_status, output):
     convert_csv(mpstat_path, output + '/' + file)
     data = pd.read_csv(output + '/' + file, header=0, index_col=0)
     data.columns = data.columns.map(lambda x:x.lower())
+    data = data[data['cpu'] != 'CPU']
+    data.to_csv(output + '/' + file)
+
     cpu_status = ['%'+i for i in m_status]
     gen_mpstat_graph(data, core, cpu_status, output)
 

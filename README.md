@@ -102,10 +102,10 @@ Average:            -     30579    0.96    0.96    0.00    1.92     -  |__PacerT
 python sclean.py -p example/log/pidstat.log
 ```
 
-这条命令默认会针对第一个 CPU 核（CPU0）以及绑定了多个 CPU 核或者未绑定 CPU 核（表象是这支线程会在多个 CPU 核上运行）的所有线程 CPU 性能进行分析。运行结束后会生成三个文件：pidstat.jpg，pidstat.csv，pidstat_sunburst.html。***注意，我们看到的这三个文件中的数值都是这段时间的平均值。***
+这条命令默认会针对第一个 CPU 核（CPU0）以及绑定了多个 CPU 核或者未绑定 CPU 核（表象是这支线程会在多个 CPU 核上运行）的所有线程 CPU 性能进行分析。运行结束后会生成三个文件：pidstat_bar.jpg，pidstat.csv，pidstat_sunburst.html。***注意，我们看到的这三个文件中的数值都是这段时间的平均值。***
 
-***pidstat.jpg*** 是针对指定 CPU 核上所有进程生成的柱状图，默认统计这段时间内用户态 CPU 使用率（%usr），内核态 CPU 使用率（%system），以及总 CPU 使用率（%CPU）的平均值。如下图：
-<div align=center><img src="./example/pidstat/pidstat.jpg" width="800"></div>
+***pidstat_bar.jpg*** 是针对指定 CPU 核上所有进程生成的柱状图，默认统计这段时间内用户态 CPU 平均使用率（%usr），内核态 CPU 平均使用率（%system），以及总 CPU 平均使用率（%CPU）。如下图：
+<div align=center><img src="./example/pidstat/pidstat_bar.jpg" width="800"></div>
 
 如果想看 pidstat 的其他指标可通过参数 “-ps” 指定，如果想指定 CPU 核可通过 “-c” 指定：
 ```
@@ -116,18 +116,18 @@ python sclean.py -p example/log/pidstat.log -c 0 1 2 3 -ps guest usr system cpu
 ***pidstat_sunburst.html*** 是一个旭日图，它显示指定 CPU 核内每个线程的 CPU 使用情况（%CPU）：
 <div align=center><img src="./example/pidstat/sunburst.gif" width="600"></div>
 
-- 从内向外数第五圈，也就是最外圈表示这支线程在这段时间内 CPU 使用率（%CPU）；
+- 从内向外数第五圈，也就是最外圈表示这支线程在这段时间内平均 CPU 使用率（%CPU）；
 - 从内向外数第四圈表示线程号；
 - 从内向外数第三圈表示线程名，线程名在不同核是有可能相同的，比如一个共享库创建的线程；
-- 从内向外数第二圈表示第三圈线程所属的进程名，这一圈可能有同名的进程，这支进程内的线程可能绑在了不同的核上，归类时会划分到同一个进程；
+- 从内向外数第二圈表示第三圈线程所属的进程名，这一圈可能有同名的进程。比如这支进程内的线程可能绑在了不同的核上，归类时会划分到同一个进程；
 - 最内圈表示表示第几个 CPU 核，如 “0” 表示仅运行在 CPU0 核上的所有进程/线程；“0,1,2,3”表示运行在 CPU0，CPU1，CPU2，CPU3 上的所有进程/线程（意思是这支线程要么绑定在 CPU0，CPU1，CPU2，CPU3 这四个核上；要么没绑核，会在 CPU0，CPU1，CPU2，CPU3 这四个核上浮动）；
 - 每个核上有哪些进程，每支进程包含哪些线程，每支线程的线程号都通过圈内半径线区分；
 
-***pidstat.csv*** 文件详细记录系统内所有线程的 CPU 使用情况：
+***pidstat.csv*** 文件详细记录系统内所有线程的平均 CPU 使用情况：
 <div align=center><img src="./example/pidstat/pidstat_detail.png" width="600"></div>
 其中 command 列表示线程名，tid 表示线程号，跟 pidstat 的输出是一致的。线程所属的进程用 process 表示，cpu 表示对应的线程运行在第几个 CPU 核，tgid 这一列已经被过滤掉了，显示为 “-”，因为我们主要关注的是线程。
 
-如果想进一步查看某支线程在这段时间内 CPU 使用情况的曲线变化图，可使用 ”-t” 参数：
+如果想进一步查看某支线程在这段时间内 CPU 使用情况的曲线变化图，可使用 ”-t” 参数，会生成一张以线程名为名字的折线图。
 ```
 python sclean.py -p example/log/pidstat.log -t 749
 ```
@@ -152,9 +152,10 @@ mpstat -P ALL 5 360 > mpstat.log // 每隔 5s 输出一次，一共记录 360 �
 python sclean.py -m example/log/mpstat.log -c 0 1 2 3
 ```
 
-这条命令会生成两个文件：mpstat.csv，mpstat.jpg。我们主要看 mpstat.jpg，它显示指定 CPU 核的 CPU 性能曲线，默认显示这几个指标：%usr，%sys，%iowait，%idle。
+这条命令会生成三个文件：mpstat.csv，mpstat_line.jpg，mpstat_pie.html。
 
-<div align=center><img src="./example/mpstat/mpstat.jpg" width="800"></div>
+***mpstat_line.jpg*** 以折线图的形式显示这段时间内指定 CPU 核的 CPU 性能曲线，默认显示这几个指标：%usr，%sys，%iowait，%idle。
+<div align=center><img src="./example/mpstat/mpstat_line.jpg" width="800"></div>
 
 如果想看 mpstat 的其他指标可通过参数 “-ms” 指定：
 运行：
@@ -163,6 +164,12 @@ python sclean.py -m example/log/mpstat.log -c 0 1 2 3 -ms usr nice irq soft
 ```
 
 这条命令指定了这几个 CPU 指标：%usr，%nice，%irq，%soft。
+
+***mpstat_pie.html*** 以饼图的形式显示这段时间内 CPU 平均性能指标。下图显示 CPU0，CPU1，CPU2，CPU3 这四个 CPU 核每个核的平均性能指标，CPU ALL 表示这四个核的加在一起的平均性能指标。
+<div align=center><img src="./example/mpstat/mpstat_pie_1.png" width="800"></div>
+<div align=center><img src="./example/mpstat/mpstat_pie_2.png" width="800"></div>
+
+***mpstat.csv*** 是清洗后的数据。
 
 ### vmstat
 vmstat 的 log 录制可以使用如下命令：
@@ -175,8 +182,8 @@ vmstat 5 360 > vmstat.log // 每隔 5s 输出一次，一共记录 360 次，也
 python sclean.py -v example/log/vmstat.log
 ```
 
-这条命令默认显示这段时间内的 Memory 使用状况。下图中有一根虚线，设定值是 20 M，可以辅助看曲线是否有触及这根线。
-<div align=center><img src="./example/vmstat/vmstat.jpg" width="800"></div>
+这条命令会生成文件：vmstat_line.jpg 以及 vmstat.csv。我们主要关注 ***vmstat_line.jpg*** ,这张图以折线图的形式显示这段时间内的 Memory 使用状况。下图中有一根虚线，设定值是 20 M，可以辅助看曲线是否有触及这根线。
+<div align=center><img src="./example/vmstat/vmstat_line.jpg" width="800"></div>
 
 当然 vmstat 上有的指标都能显示：
 ```
@@ -184,8 +191,9 @@ python sclean.py -v example/log/vmstat.log -vm -vi -vs -vc
 ```
 
 这条命令显示这段时间 Memory，IO，System，CPU 的使用状况。
-<div align=center><img src="./example/vmstat/vmstat_all.jpg" width="800"></div>
+<div align=center><img src="./example/vmstat/vmstat_all_line.jpg" width="800"></div>
 
+对于所有的命令，都可以使用 “-o” 参数指定输出文件的路径。
 
 ## 维护者
 [@Seven](https://github.com/stoneboy100200).

@@ -7,9 +7,12 @@ import argparse
 import os
 import time
 import sys
+import math
 from matplotlib import font_manager as fm, rcParams
 import plotly
 import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 # compatible with Chinese fonts
 plt.rcParams['font.sans-serif'] = 'SimHei'
@@ -56,14 +59,14 @@ def gen_data(data, thread, p_status, p_process, output):
     cpu = match_cpu_core(detail)
 
     # get rows that contain 'Average:'
-    av = data[data.index.isin(['Average:'])]
-    av = av.reset_index(drop=True)
-    av = av.drop(index=[0], axis = 0)
+    avg = data[data.index.isin(['Average:'])]
+    avg = avg.reset_index(drop=True)
+    avg = avg.drop(index=[0], axis = 0)
 
     def get_cpu_core(tgid, tid):
         return sorted(list(map(int, cpu[tid] if tid.isdigit() else cpu[tgid])))
-    av['cpu'] = av.apply(lambda row: get_cpu_core(row['tgid'], row['tid']), axis = 1)
-    return av
+    avg['cpu'] = avg.apply(lambda row: get_cpu_core(row['tgid'], row['tid']), axis = 1)
+    return avg
 
 def add_process(data):
     process = ""
@@ -114,7 +117,7 @@ def gen_pidstat_graph(data, cpu_status, title, output):
     plt.subplots_adjust(hspace=0.4)
     for i, t in enumerate(title):
         set_bar_chart_param(data[i], axs[i], t, cpu_status)
-    plt.savefig(output + "/pidstat.jpg", bbox_inches = 'tight')
+    plt.savefig(output + "/pidstat_bar.jpg", bbox_inches = 'tight')
 
 def auto_text(rects, ax):
     for rect in rects:
@@ -167,21 +170,40 @@ def set_line_chart_param(cpu_data, cpu_status, title, y_label):
     plt.legend(cpu_status)
     plt.title(title)
 
+def gen_mpstat_pie_graph(data, output):
+    data = data.apply(pd.to_numeric, errors = 'ignore')
+    cpu_avg = round(data.groupby('cpu').agg('mean'), 2)
+    # pie graph for all CPU
+    cpu_avg.index = cpu_avg.index.map(lambda x:x.upper())
+    row_cnt = math.ceil(len(cpu_avg.index) / 2)
+    specs = [[{'type':'domain'}, {'type':'domain'}]] * row_cnt
+    title = ['CPU ' + i for i in cpu_avg.index]
+    fig = make_subplots(row_cnt, 2, specs = specs, subplot_titles = title)
+    row = 1
+    for i in range(0, len(title), 2):
+        fig.add_trace(go.Pie(labels = cpu_avg.columns,
+                             values = cpu_avg.iloc[i],
+                             textinfo = 'label+percent',
+                             name = title[i]), row, 1)
+        if i == (len(title)-1) and len(title)%2 != 0:
+            pass
+        else:
+            fig.add_trace(go.Pie(labels = cpu_avg.columns,
+                                 values = cpu_avg.iloc[i+1],
+                                 textinfo = 'label+percent',
+                                 name = title[i+1]), row, 2)
+        row += 1
+
+    fig.update_layout(
+        autosize = False,
+        height = 400 * len(title),
+        width=1800,
+        title_text = 'Average CPU Usage')
+    plotly.offline.plot(fig, filename = output + '/mpstat_pie.html')
+
 def gen_mpstat_graph(data, core, cpu_status, output):
     detail = data[~data.index.isin(['Average:'])]
-    # print(detail.dtypes)
-    # print(detail.iloc[:, 2:])
-    # detail['%usr', '%nice'] = pd.to_numeric(detail['%usr', '%nice'], errors='coerce')
-    # detail[['%usr', '%nice']] = detail[['%usr', '%nice']].astype(float)
-    # detail.apply(pd.to_numeric, errors='coerce')
-    detail = detail.apply(pd.to_numeric, errors='ignore')
-    # print(detail.dtypes)
-    
-    
-    cpu_av = round(detail.groupby('cpu').agg('mean'), 2)
-    # print(cpu_av)
-    # print(cpu_av.style.bar())
-    cpu_av.to_csv(output + '/' + 'test.csv')
+    gen_mpstat_pie_graph(detail, output)
 
     graph_num = len(core)
     fig = plt.figure(figsize = (20, graph_num*5))
@@ -196,7 +218,7 @@ def gen_mpstat_graph(data, core, cpu_status, output):
         else:
             print("[Warning] CPU core is invalid")
 
-    plt.savefig(output + "/mpstat.jpg", bbox_inches='tight')
+    plt.savefig(output + "/mpstat_line.jpg", bbox_inches='tight')
 
 def gen_sunburst_graph(data, output):
     data['command']=data['command'].map(lambda x: x[3:] if x[0:3]=='|__' else x)
@@ -217,13 +239,13 @@ def pidstat_process(pidstat_path, core, thread, p_status, p_process, output):
     data = pd.read_csv(output + '/' + file, header=0, index_col=0)
     data.columns = data.columns.map(lambda x:x.lower())
     cpu_status = ['%'+i for i in p_status]
-    av = gen_data(data, thread, cpu_status, p_process, output)
-    add_process(av)
+    avg = gen_data(data, thread, cpu_status, p_process, output)
+    add_process(avg)
     # remove row of main process
-    av = filter_process(av, p_process)
-    av = sort_by_cpu(av, core, cpu_status, output)
-    gen_sunburst_graph(av, output)
-    av.to_csv(output + '/' + file, index=False)
+    avg = filter_process(avg, p_process)
+    avg = sort_by_cpu(avg, core, cpu_status, output)
+    gen_sunburst_graph(avg, output)
+    avg.to_csv(output + '/' + file, index=False)
 
 def mpstat_process(mpstat_path, core, m_status, output):
     if not os.path.exists(mpstat_path):
@@ -253,8 +275,9 @@ def gen_vmstat_graph(data, v_status, title, y_label, output):
         set_line_chart_param(data, v_status[i], title[i], y_label[i])
         if t == 'Memory':
             plt.axhline(y = 20, c = "black", ls = "--", lw = 1)
+            plt.axhline(y = 100, c = "black", ls = "--", lw = 1)
 
-    plt.savefig(output + "/vmstat.jpg", bbox_inches='tight')
+    plt.savefig(output + "/vmstat_line.jpg", bbox_inches='tight')
 
 def vmstat_process(vmstat_path, vmstat_mem, vmstat_io, vmstat_system, vmstat_cpu, output):
     if not os.path.exists(vmstat_path):

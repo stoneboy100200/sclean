@@ -333,7 +333,7 @@ def gen_pidstat_mem_graph(data, p_process):
     for i, c in enumerate(processes):
         title.append('VSZ of ' + c)
         title.append('RSS of ' + c)
-    title.append('Memory')
+    title.append('Memory Usage Percentages')
     fig = make_subplots(rows=len(processes)+1, cols=2, subplot_titles=title)
 
     for i, c in enumerate(processes):
@@ -368,7 +368,7 @@ def gen_pidstat_mem_graph(data, p_process):
         fig.update_yaxes(title_text = 'Mem(%)', row = len(processes)+1, col = 1)
         fig.update_xaxes(title_text = 'Time', row = len(processes)+1, col = 1)
 
-    fig.update_layout(title = 'Memory Usage Percentages',
+    fig.update_layout(title = 'Memory Usage',
                       height = 500*len(processes),
                       legend = {'x': 0.5, 'y': 0})
     fig.write_html("pidstat_mem.html")

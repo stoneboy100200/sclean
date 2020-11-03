@@ -102,7 +102,7 @@ Average:            -     30579    0.96    0.96    0.00    1.92     -  |__PacerT
 python sclean.py -p example/log/pidstat.log
 ```
 
-这条命令默认会针对第一个 CPU 核（CPU0）以及绑定了多个 CPU 核或者未绑定 CPU 核（表象是这支线程会在多个 CPU 核上运行）的所有线程 CPU 性能进行分析。运行结束后会生成三个文件：pidstat_bar.jpg，pidstat.csv，pidstat_sunburst.html。***注意，我们看到的这三个文件中的数值都是这段时间的平均值。***
+这条命令默认会针对第一个 CPU 核（CPU0）以及绑定了多个 CPU 核或者未绑定 CPU 核（表象是这支线程会在多个 CPU 核上运行）的所有线程 CPU 性能进行分析。运行结束后会生成三个文件：pidstat_bar.jpg，pidstat_cpu.csv，pidstat_sunburst.html。***注意，我们看到的这三个文件中的数值都是这段时间的平均值。***
 
 ***pidstat_bar.jpg*** 是针对指定 CPU 核上所有进程生成的柱状图，默认统计这段时间内用户态 CPU 平均使用率（%usr），内核态 CPU 平均使用率（%system），以及总 CPU 平均使用率（%CPU）。如下图：
 <div align=center><img src="./example/pidstat/pidstat_bar.jpg" width="800"></div>
@@ -123,7 +123,7 @@ python sclean.py -p example/log/pidstat.log -c 0 1 2 3 -ps guest usr system cpu
 - 最内圈表示表示第几个 CPU 核，如 “0” 表示仅运行在 CPU0 核上的所有进程/线程；“0,1,2,3”表示运行在 CPU0，CPU1，CPU2，CPU3 上的所有进程/线程（意思是这支线程要么绑定在 CPU0，CPU1，CPU2，CPU3 这四个核上；要么没绑核，会在 CPU0，CPU1，CPU2，CPU3 这四个核上浮动）；
 - 每个核上有哪些进程，每支进程包含哪些线程，每支线程的线程号都通过圈内半径线区分；
 
-***pidstat.csv*** 文件详细记录系统内所有线程的平均 CPU 使用情况：
+***pidstat_cpu.csv*** 文件详细记录系统内所有线程的平均 CPU 使用情况：
 <div align=center><img src="./example/pidstat/pidstat_detail.png" width="600"></div>
 其中 command 列表示线程名，tid 表示线程号，跟 pidstat 的输出是一致的。线程所属的进程用 process 表示，cpu 表示对应的线程运行在第几个 CPU 核，tgid 这一列已经被过滤掉了，显示为 “-”，因为我们主要关注的是线程。
 

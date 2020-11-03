@@ -18,7 +18,6 @@ from plotly.subplots import make_subplots
 plt.rcParams['font.sans-serif'] = 'SimHei'
 plt.rcParams['axes.unicode_minus'] = False
 
-
 def convert_csv(path, file):
     # remove the first line to avoid converting error (not utf8)
     os.system("sed -i -e '/Linux/d' " + path)
@@ -227,17 +226,7 @@ def gen_sunburst_graph(data, output):
     fig.update_layout()
     plotly.offline.plot(fig, filename = output + '/pidstat_sunburst.html')
 
-def pidstat_process(pidstat_path, core, thread, p_status, p_process, output):
-    if not os.path.exists(pidstat_path):
-        print("[Error] {} does not exist!".format(pidstat_path))
-        sys.exit(1)
-    print("pidstat_path={}".format(pidstat_path))
-
-    # convert to csv file
-    file = 'pidstat.csv'
-    convert_csv(pidstat_path, output + '/' + file)
-    data = pd.read_csv(output + '/' + file, header=0, index_col=0)
-    data.columns = data.columns.map(lambda x:x.lower())
+def gen_pidstat_cpu_graph(data, p_status, thread, p_process, output, core, file):
     cpu_status = ['%'+i for i in p_status]
     avg = gen_data(data, thread, cpu_status, p_process, output)
     add_process(avg)
@@ -246,6 +235,162 @@ def pidstat_process(pidstat_path, core, thread, p_status, p_process, output):
     avg = sort_by_cpu(avg, core, cpu_status, output)
     gen_sunburst_graph(avg, output)
     avg.to_csv(output + '/' + file, index=False)
+
+def gen_pidstat_io_graph(data, p_process):
+    detail = data[~data.index.isin(['#'])]
+    column = detail.columns.tolist()
+    detail = detail.copy()
+    detail.dropna(axis = 1, how = 'all', inplace = True)
+    detail.dropna(axis = 0, how = 'any', inplace = True)
+    if 'time' in column:
+        column.remove('time')
+    detail.columns = column
+    detail.to_csv('pidstat_io.csv')
+    data_g = detail.groupby('command', sort = False)
+    if len(p_process) != 0:
+        processes = p_process
+    else:
+        processes = data_g.size().index
+
+    title = []
+    for i, c in enumerate(processes):
+        title.append('Read from Disk by ' + c)
+        title.append('Write to Disk by ' + c)
+    title.append('CCWR')
+    title.append('IO Delay')
+    fig = make_subplots(rows=len(processes)+1, cols=2, subplot_titles=title)
+
+    for i, c in enumerate(processes):
+        fig.add_trace(go.Scatter(x = detail.loc[detail['command'] == c].index,
+                                 y = detail.loc[detail['command'] == c]['kb_rd/s'],
+                                 mode = 'lines',
+                                 showlegend = False),
+                      row = i+1, col = 1)
+        fig.add_trace(go.Scatter(x = detail.loc[detail['command'] == c].index,
+                                 y = detail.loc[detail['command'] == c]['kb_wr/s'],
+                                 mode = 'lines',
+                                 showlegend = False),
+                      row = i+1, col = 2)
+        fig.update_yaxes(title_text = 'Read(kb/s)', row = i+1, col = 1)
+        fig.update_yaxes(title_text = 'Write(kb/s)', row = i+1, col = 2)
+        fig.update_xaxes(title_text = 'Time', row = i+1, col = 1)
+        fig.update_xaxes(title_text = 'Time', row = i+1, col = 2)
+
+    color = px.colors.qualitative.Plotly
+    index = 0
+    # display kB_ccwr/s and iodelay
+    for c, d in data_g:
+        if 'kb_ccwr/s' in detail.columns:
+            fig.add_trace(go.Scatter(x = d.index,
+                                     y = d['kb_ccwr/s'],
+                                     mode = 'lines',
+                                     name = c,
+                                     line_color = color[index],
+                                     legendgroup = c),
+                          row = len(processes)+1, col = 1)
+        if 'iodelay' in detail.columns:
+            fig.add_trace(go.Scatter(x = d.index,
+                                     y = d['iodelay'],
+                                     mode = 'lines',
+                                     name = c,
+                                     line_color = color[index],
+                                     legendgroup = c,
+                                     showlegend = False,),
+                          row = len(processes)+1, col = 2)
+        index += 1
+    if 'kb_ccwr/s' in detail.columns:
+        fig.update_yaxes(title_text = 'CCWR(kb/s)', row = len(processes)+1, col = 1)
+        fig.update_xaxes(title_text = 'Time', row = len(processes)+1, col = 1)
+    if 'iodelay' in detail.columns:
+        fig.update_yaxes(title_text = 'Clock Cycle', row = len(processes)+1, col = 2)
+        fig.update_xaxes(title_text = 'Time', row = len(processes)+1, col = 2)
+
+    fig.update_layout(title = 'IO Usage',
+                      height = 500*len(processes),
+                      legend = {'x': 1, 'y': 0})
+    fig.write_html("pidstat_io.html")
+
+def gen_pidstat_mem_graph(data, p_process):
+    detail = data[~data.index.isin(['#'])]
+    column = detail.columns.tolist()
+    detail = detail.copy()
+    detail.dropna(axis = 1, how = 'all', inplace = True)
+    detail.dropna(axis = 0, how = 'any', inplace = True)
+    if 'time' in column:
+        column.remove('time')
+    detail.columns = column
+    # convert kb to M
+    detail['vsz'] = detail['vsz'].map(lambda x: float(x)/1024)
+    detail['rss'] = detail['rss'].map(lambda x: float(x)/1024)
+    detail.to_csv('pidstat_mem.csv')
+    data_g = detail.groupby('command', sort = False)
+    if len(p_process) != 0:
+        processes = p_process
+    else:
+        processes = data_g.size().index
+
+    title = []
+    for i, c in enumerate(processes):
+        title.append('VSZ of ' + c)
+        title.append('RSS of ' + c)
+    title.append('Memory')
+    fig = make_subplots(rows=len(processes)+1, cols=2, subplot_titles=title)
+
+    for i, c in enumerate(processes):
+        fig.add_trace(go.Scatter(x = detail.loc[detail['command'] == c].index,
+                                 y = detail.loc[detail['command'] == c].vsz,
+                                 mode = 'lines',
+                                 showlegend = False),
+                      row = i+1, col = 1)
+        fig.add_trace(go.Scatter(x = detail.loc[detail['command'] == c].index,
+                                 y = detail.loc[detail['command'] == c].rss,
+                                 mode = 'lines',
+                                 showlegend = False),
+                      row = i+1, col = 2)
+        fig.update_yaxes(title_text = 'VSZ(M)', row = i+1, col = 1)
+        fig.update_yaxes(title_text = 'RSS(M)', row = i+1, col = 2)
+        fig.update_xaxes(title_text = 'Time', row = i+1, col = 1)
+        fig.update_xaxes(title_text = 'Time', row = i+1, col = 2)
+
+    color = px.colors.qualitative.Plotly
+    index = 0
+    # display %mem
+    for c, d in data_g:
+        if '%mem' in detail.columns:
+            fig.add_trace(go.Scatter(x = d.index,
+                                     y = d['%mem'],
+                                     mode = 'lines',
+                                     name = c,
+                                     line_color = color[index]),
+                          row = len(processes)+1, col = 1)
+            index += 1
+    if '%mem' in detail.columns:
+        fig.update_yaxes(title_text = 'Mem(%)', row = len(processes)+1, col = 1)
+        fig.update_xaxes(title_text = 'Time', row = len(processes)+1, col = 1)
+
+    fig.update_layout(title = 'Memory Usage Percentages',
+                      height = 500*len(processes),
+                      legend = {'x': 0.5, 'y': 0})
+    fig.write_html("pidstat_mem.html")
+
+def pidstat_process(pidstat_path, core, thread, p_status, p_process, output, pidstat_t, pidstat_r, pidstat_d):
+    if not os.path.exists(pidstat_path):
+        print("[Error] {} does not exist!".format(pidstat_path))
+        sys.exit(1)
+    print("pidstat_path={}".format(pidstat_path))
+
+    # convert to csv file
+    file = 'pidstat_cpu.csv'
+    convert_csv(pidstat_path, output + '/' + file)
+    data = pd.read_csv(output + '/' + file, header = 0, index_col = 0)
+    data.columns = data.columns.map(lambda x:x.lower())
+
+    if pidstat_t:
+        gen_pidstat_cpu_graph(data, p_status, thread, p_process, output, core, file)
+    if pidstat_r:
+        gen_pidstat_mem_graph(data, p_process)
+    if pidstat_d:
+        gen_pidstat_io_graph(data, p_process)
 
 def mpstat_process(mpstat_path, core, m_status, output):
     if not os.path.exists(mpstat_path):
@@ -321,6 +466,9 @@ def vmstat_process(vmstat_path, vmstat_mem, vmstat_io, vmstat_system, vmstat_cpu
 
 def main(args):
     pidstat_path = args.pidstat
+    pidstat_t = args.pidstat_t
+    pidstat_r = args.pidstat_r
+    pidstat_d = args.pidstat_d
     p_status = args.p_status
     p_process = args.p_process
     thread = args.thread
@@ -346,7 +494,7 @@ def main(args):
     print("output={}".format(output))
 
     if len(pidstat_path) != 0:
-        pidstat_process(pidstat_path, core, thread, p_status, p_process, output)
+        pidstat_process(pidstat_path, core, thread, p_status, p_process, output, pidstat_t, pidstat_r, pidstat_d)
     if len(mpstat_path) != 0:
         mpstat_process(mpstat_path, core, m_status, output)
     if len(vmstat_path) != 0:
@@ -355,6 +503,9 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="data cleaning tool for pidstat and mpstat.")
     parser.add_argument("-p", "--pidstat", type=str, default="", help="Path of pidstat log.")
+    parser.add_argument("-pt", "--pidstat_t", action='store_true', default=False, help="Display statistics for threads associated with selected tasks.")
+    parser.add_argument("-pr", "--pidstat_r", action='store_true', default=False, help="Display statistics for memory utilization.")
+    parser.add_argument("-pd", "--pidstat_d", action='store_true', default=False, help="Display I/O statistics.")
     parser.add_argument("-ps", "--p_status", type=str, default=['usr', 'system', 'cpu'], nargs='*', help="The status of pidstat. eg. usr system.")
     parser.add_argument("-pp", "--p_process", type=str, default=[], nargs='*', help="The process that needs to be displayed.")
     parser.add_argument("-m", "--mpstat", type=str, default="", help="Path of mpstat log.")

@@ -70,7 +70,8 @@ $ rm ~/.cache/matplotlib
 
 ## 用法
 SClean 是对 sysstat 工具的输出做数据清洗，因此在使用之前必须有一份 log 文件。
-### pidstat
+### pidstat 辅助分析
+#### 线程 CPU 使用率分析
 针对 pidstat，目前 SClean 只对线程级别做了数据清洗，因为我们大多数时候不清楚一个进程中的若干支线程它们的 CPU 状况。因此你的命令参数应该是 “-t”，比如：
 ```python
 $ pidstat -t interval count  // interval 为时间间隔，count 为次数
@@ -99,10 +100,10 @@ Average:            -     30579    0.96    0.96    0.00    1.92     -  |__PacerT
 
 运行：
 ```
-python sclean.py -p example/log/pidstat.log
+python sclean.py -p example/log/pidstat.log -pt
 ```
 
-这条命令默认会针对第一个 CPU 核（CPU0）以及绑定了多个 CPU 核或者未绑定 CPU 核（表象是这支线程会在多个 CPU 核上运行）的所有线程 CPU 性能进行分析。运行结束后会生成三个文件：pidstat_bar.jpg，pidstat_cpu.csv，pidstat_sunburst.html。***注意，我们看到的这三个文件中的数值都是这段时间的平均值。***
+其中参数 “-p” 指定 log 路径，参数 “-pt” 指明对线程的 CPU 使用率进行分析。命令默认会针对第一个 CPU 核（CPU0）以及绑定了多个 CPU 核或者未绑定 CPU 核（表象是这支线程会在多个 CPU 核上运行）的所有线程 CPU 性能进行分析。运行结束后会生成三个文件：pidstat_bar.jpg，pidstat_cpu.csv，pidstat_sunburst.html。***注意，我们看到的这三个文件中的数值都是这段时间的平均值。***
 
 ***pidstat_bar.jpg*** 是针对指定 CPU 核上所有进程生成的柱状图，默认统计这段时间内用户态 CPU 平均使用率（%usr），内核态 CPU 平均使用率（%system），以及总 CPU 平均使用率（%CPU）。如下图：
 <div align=center><img src="./example/pidstat/pidstat_bar.jpg" width="800"></div>
@@ -141,7 +142,42 @@ python sclean.py -p example/log/pidstat.log -c 0 1 2 3 -pp rss cnn rnn rbm
 
 <div align=center><img src="./example/pidstat/sunburst_filter_process.gif" width="600"></div>
 
-### mpstat
+#### Memory 分析
+因为是对内存进行数据分析，所以你录 log 的命令需要加上参数 “-r”，如下示例：
+```
+$ pidstat -C "process1|process2|process3|process4|process5|process6|process7|process8|process9|process10" -rdh -p ALL 10 > pidstat_mem_io.log
+```
+
+使用参数 “-pr” 会生成指定进程的内存使用率的折线图，如下命令：
+```
+python sclean.py -p example/log/pidstat_mem_io.log -pr
+```
+或者指定进程名进行过滤：
+```
+python sclean.py -p example/log/pidstat_mem_io.log -pr -pp process1 process2
+```
+
+最终会生成文件 ***pidstat_mem.html***。在 html 页面以交互式的形式显示每个进程的 VSZ、RSS 以及指定进程的内存使用率。
+<div align=center><img src="./example/pidstat/pidstat_mem.png" width="800"></div>
+
+#### IO 分析
+因为是对 IO 进行数据分析，所以你录 log 的命令需要加上参数 “-d”，如下示例：
+```
+$ pidstat -C "process1|process2|process3|process4|process5|process6|process7|process8|process9|process10" -rdh -p ALL 10 > pidstat_mem_io.log
+```
+
+使用参数 “-pd” 会生成指定进程的 IO 使用率的折线图，如下命令：
+```
+python sclean.py -p example/log/pidstat_mem_io.log -pd
+```
+或者指定进程名进行过滤：
+```
+python sclean.py -p example/log/pidstat_mem_io.log -pd -pp process1 process2
+```
+最终会生成文件 ***pidstat_io.html***。在 html 页面以交互式的形式显示指定进程每秒读写磁盘的大小，以及 CCWR 和 IO Delay 的状态。
+<div align=center><img src="./example/pidstat/pidstat_io.png" width="800"></div>
+
+### mpstat 辅助分析
 mpstat 的 log 录制可以使用如下命令：
 ```
 mpstat -P ALL 5 360 > mpstat.log // 每隔 5s 输出一次，一共记录 360 次，也就是会录制半小时的 log
@@ -171,7 +207,7 @@ python sclean.py -m example/log/mpstat.log -c 0 1 2 3 -ms usr nice irq soft
 
 ***mpstat.csv*** 是清洗后的数据。
 
-### vmstat
+### vmstat 辅助分析
 vmstat 的 log 录制可以使用如下命令：
 ```
 vmstat 5 360 > vmstat.log // 每隔 5s 输出一次，一共记录 360 次，也就是会录制半小时的 log

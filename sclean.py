@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import csv
 import argparse
 import os
-import time
 import sys
 import math
 from matplotlib import font_manager as fm, rcParams
@@ -13,6 +12,7 @@ import plotly
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import re
 
 # compatible with Chinese fonts
 plt.rcParams['font.sans-serif'] = 'SimHei'
@@ -463,6 +463,46 @@ def vmstat_process(vmstat_path, vmstat_mem, vmstat_io, vmstat_system, vmstat_cpu
         y_label.append('CPU Usage(%)')
     gen_vmstat_graph(v_data, v_status, title, y_label, output)
 
+def filter_log(path, output, pattern):
+    org_output = sys.stdout
+    with open(path, 'r', encoding='UTF-8',errors='ignore') as f:
+        output_file = open(output, 'w')
+        sys.stdout = output_file
+        res = re.compile(pattern)
+        for line in f:
+            m = res.match(line)
+            if m is not None:
+                print(line)
+        output_file.close()
+    sys.stdout = org_output
+
+def tcmalloc_process(tcmalloc_path, output):
+    if not os.path.exists(tcmalloc_path):
+        print("[Error] {} does not exist!".format(tcmalloc_path))
+        sys.exit(1)
+    print("tcmalloc_path={}".format(tcmalloc_path))
+
+    tcmalloc_file = 'tcmalloc.log'
+    filter_log(tcmalloc_path, output+'/'+tcmalloc_file, r'(.*)(^TCMALLOC_MINI\(USER\).*thread_one \d)')
+    # convert to csv file
+    file = 'tcmalloc.csv'
+    convert_csv(output+'/'+tcmalloc_file, output + '/' + file)
+    data = pd.read_csv(output + '/' + file, header = 0, index_col = 0,
+                       names = ['c1', 'c2', 'c3', 'mem', 'c4', 'c5', 'c6', 'c7', 'c8', 'tid', 'c10', 'c11', 'c12', 'c13'])
+    data_g = data.groupby('tid', sort = False)
+
+    fig = make_subplots(rows=len(data_g.size().index), cols=1, subplot_titles=list(map(str, data_g.size().index)))
+    idx = 1
+    for c, d in data_g:
+        fig.add_trace(go.Scatter(x = np.arange(0, len(d['mem'])),
+                                 y = d['mem'],
+                                 name = c),
+                      row = idx, col = 1)
+        fig.update_xaxes(title_text = 'Time', row = idx, col = 1)
+        fig.update_yaxes(title_text = 'Mem Size(M)', row = idx, col = 1)
+        idx += 1
+    fig.update_layout(title = 'Memory Usage of Thread', height = 500*len(data_g.size().index))
+    fig.write_html("tcmalloc.html")
 
 def main(args):
     pidstat_path = args.pidstat
@@ -484,6 +524,7 @@ def main(args):
 
     core = args.core
     output = args.output
+    tcmalloc_path = args.tcmalloc
 
     if len(output) == 0:
         output = os.getcwd()
@@ -499,6 +540,8 @@ def main(args):
         mpstat_process(mpstat_path, core, m_status, output)
     if len(vmstat_path) != 0:
         vmstat_process(vmstat_path, vmstat_mem, vmstat_io, vmstat_system, vmstat_cpu, output)
+    if len(tcmalloc_path) != 0:
+        tcmalloc_process(tcmalloc_path, output)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="data cleaning tool for pidstat and mpstat.")
@@ -518,5 +561,6 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--core", type=str, default=['0'], nargs='*', help="The number of CPU core.")
     parser.add_argument("-t", "--thread", type=str, default="", help="The number of thread.")
     parser.add_argument("-o", "--output", type=str, default="", help="Path of output.")
+    parser.add_argument("-tc", "--tcmalloc", type=str, default="", help="Path of tcmalloc log.")
     args = parser.parse_args()
     main(args)

@@ -24,10 +24,10 @@ def convert_csv(path, file):
     with open(file, 'w+', newline='') as csvfile:
         csv_file = csv.writer(csvfile, dialect='excel')
         with open(path, 'r', encoding='utf-8') as filein:
-            next(filein)
             for line in filein:
-                line_list = line.strip('\n').split()
-                csv_file.writerow(line_list)
+                if line.split():
+                    line_list = line.strip('\n').split()
+                    csv_file.writerow(line_list)
 
 def match_cpu_core(detail):
     cpu = {}
@@ -487,8 +487,9 @@ def tcmalloc_process(tcmalloc_path, output):
     # convert to csv file
     file = 'tcmalloc.csv'
     convert_csv(output+'/'+tcmalloc_file, output + '/' + file)
+    column = ['c1', 'c2', 'c3', 'mem', 'c4', 'c5', 'c6', 'c7', 'c8', 'tid', 'c10', 'c11', 'c12', 'c13']
     data = pd.read_csv(output + '/' + file, header = 0, index_col = 0,
-                       names = ['c1', 'c2', 'c3', 'mem', 'c4', 'c5', 'c6', 'c7', 'c8', 'tid', 'c10', 'c11', 'c12', 'c13'])
+                       names = column)
     data_g = data.groupby('tid', sort = False)
 
     fig = make_subplots(rows=len(data_g.size().index), cols=1, subplot_titles=list(map(str, data_g.size().index)))
@@ -503,6 +504,53 @@ def tcmalloc_process(tcmalloc_path, output):
         idx += 1
     fig.update_layout(title = 'Memory Usage of Thread', height = 500*len(data_g.size().index))
     fig.write_html("tcmalloc.html")
+
+def procrank_process(procrank_path, output, p_process):
+    if not os.path.exists(procrank_path):
+        print("[Error] {} does not exist!".format(procrank_path))
+        sys.exit(1)
+    print("procrank_path={}".format(procrank_path))
+
+    # convert to csv file
+    file = 'procrank.csv'
+    convert_csv(procrank_path, output + '/' + file)
+    column = ['pid', 'vss', 'rss', 'pss', 'uss', 'command']
+    data = pd.read_csv(output + '/' + file, names = column)
+    data['vss'] = data['vss'].apply(lambda row: float(row.rstrip('K'))/1024)
+    data['rss'] = data['rss'].apply(lambda row: float(row.rstrip('K'))/1024)
+    data['pss'] = data['pss'].apply(lambda row: float(row.rstrip('K'))/1024)
+    data['uss'] = data['uss'].apply(lambda row: float(row.rstrip('K'))/1024)
+
+    data_g = data.groupby('command', sort = False)
+    if len(p_process) != 0:
+        processes = p_process
+    else:
+        processes = data_g.size().index
+
+    title = []
+    for i, c in enumerate(processes):
+        title.append('PSS of ' + c)
+        title.append('USS of ' + c)
+    fig = make_subplots(rows=len(processes), cols=2, subplot_titles=title)
+
+    for i, c in enumerate(processes):
+        fig.add_trace(go.Scatter(x = np.arange(0, len(data.loc[data['command'] == c].index)),
+                                 y = data.loc[data['command'] == c].pss,
+                                 mode = 'lines',
+                                 showlegend = False),
+                      row = i+1, col = 1)
+        fig.add_trace(go.Scatter(x = np.arange(0, len(data.loc[data['command'] == c].index)),
+                                 y = data.loc[data['command'] == c].uss,
+                                 mode = 'lines',
+                                 showlegend = False),
+                      row = i+1, col = 2)
+        fig.update_yaxes(title_text = 'PSS(M)', row = i+1, col = 1)
+        fig.update_yaxes(title_text = 'USS(M)', row = i+1, col = 2)
+        fig.update_xaxes(title_text = 'Time', row = i+1, col = 1)
+        fig.update_xaxes(title_text = 'Time', row = i+1, col = 2)
+
+    fig.update_layout(title = 'Procrank Statistics', height = 500*len(processes))
+    fig.write_html("procrank.html")
 
 def main(args):
     pidstat_path = args.pidstat
@@ -524,7 +572,9 @@ def main(args):
 
     core = args.core
     output = args.output
+
     tcmalloc_path = args.tcmalloc
+    procrank_path = args.procrank
 
     if len(output) == 0:
         output = os.getcwd()
@@ -542,6 +592,8 @@ def main(args):
         vmstat_process(vmstat_path, vmstat_mem, vmstat_io, vmstat_system, vmstat_cpu, output)
     if len(tcmalloc_path) != 0:
         tcmalloc_process(tcmalloc_path, output)
+    if len(procrank_path) != 0:
+        procrank_process(procrank_path, output, p_process)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="data cleaning tool for pidstat and mpstat.")
@@ -562,5 +614,6 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--thread", type=str, default="", help="The number of thread.")
     parser.add_argument("-o", "--output", type=str, default="", help="Path of output.")
     parser.add_argument("-tc", "--tcmalloc", type=str, default="", help="Path of tcmalloc log.")
+    parser.add_argument("-pk", "--procrank", type=str, default="", help="Path of procrank log.")
     args = parser.parse_args()
     main(args)

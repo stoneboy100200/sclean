@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import csv
 import argparse
 import os
-import time
 import sys
 import math
 from matplotlib import font_manager as fm, rcParams
@@ -13,6 +12,7 @@ import plotly
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import re
 
 # compatible with Chinese fonts
 plt.rcParams['font.sans-serif'] = 'SimHei'
@@ -24,10 +24,10 @@ def convert_csv(path, file):
     with open(file, 'w+', newline='') as csvfile:
         csv_file = csv.writer(csvfile, dialect='excel')
         with open(path, 'r', encoding='utf-8') as filein:
-            next(filein)
             for line in filein:
-                line_list = line.strip('\n').split()
-                csv_file.writerow(line_list)
+                if line.split():
+                    line_list = line.strip('\n').split()
+                    csv_file.writerow(line_list)
 
 def match_cpu_core(detail):
     cpu = {}
@@ -47,7 +47,7 @@ def gen_pidstat_thread_graph(data, thread, p_status, p_process, output):
         fig = plt.figure(figsize = (20, 10))
         set_line_chart_param(tid_data, p_status, "Thread "+thread, 'CPU Usage(%)')
         plt.savefig(output + "/" + thread+".jpg", bbox_inches='tight')
-        # sys.exit(0)
+        sys.exit(0)
 
 
 def gen_data(data, thread, p_status, p_process, output):
@@ -241,7 +241,6 @@ def gen_pidstat_io_graph(data, p_process):
     column = detail.columns.tolist()
     detail = detail.copy()
     detail.dropna(axis = 1, how = 'all', inplace = True)
-    detail.dropna(axis = 0, how = 'any', inplace = True)
     if 'time' in column:
         column.remove('time')
     detail.columns = column
@@ -264,11 +263,13 @@ def gen_pidstat_io_graph(data, p_process):
         fig.add_trace(go.Scatter(x = detail.loc[detail['command'] == c].index,
                                  y = detail.loc[detail['command'] == c]['kb_rd/s'],
                                  mode = 'lines',
+                                 fill = 'tozeroy',
                                  showlegend = False),
                       row = i+1, col = 1)
         fig.add_trace(go.Scatter(x = detail.loc[detail['command'] == c].index,
                                  y = detail.loc[detail['command'] == c]['kb_wr/s'],
                                  mode = 'lines',
+                                 fill = 'tozeroy',
                                  showlegend = False),
                       row = i+1, col = 2)
         fig.update_yaxes(title_text = 'Read(kb/s)', row = i+1, col = 1)
@@ -284,6 +285,7 @@ def gen_pidstat_io_graph(data, p_process):
             fig.add_trace(go.Scatter(x = d.index,
                                      y = d['kb_ccwr/s'],
                                      mode = 'lines',
+                                     fill = 'tozeroy',
                                      name = c,
                                      line_color = color[index],
                                      legendgroup = c),
@@ -292,6 +294,7 @@ def gen_pidstat_io_graph(data, p_process):
             fig.add_trace(go.Scatter(x = d.index,
                                      y = d['iodelay'],
                                      mode = 'lines',
+                                     fill = 'tozeroy',
                                      name = c,
                                      line_color = color[index],
                                      legendgroup = c,
@@ -315,7 +318,6 @@ def gen_pidstat_mem_graph(data, p_process):
     column = detail.columns.tolist()
     detail = detail.copy()
     detail.dropna(axis = 1, how = 'all', inplace = True)
-    detail.dropna(axis = 0, how = 'any', inplace = True)
     if 'time' in column:
         column.remove('time')
     detail.columns = column
@@ -340,11 +342,13 @@ def gen_pidstat_mem_graph(data, p_process):
         fig.add_trace(go.Scatter(x = detail.loc[detail['command'] == c].index,
                                  y = detail.loc[detail['command'] == c].vsz,
                                  mode = 'lines',
+                                 fill = 'tozeroy',
                                  showlegend = False),
                       row = i+1, col = 1)
         fig.add_trace(go.Scatter(x = detail.loc[detail['command'] == c].index,
                                  y = detail.loc[detail['command'] == c].rss,
                                  mode = 'lines',
+                                 fill = 'tozeroy',
                                  showlegend = False),
                       row = i+1, col = 2)
         fig.update_yaxes(title_text = 'VSZ(M)', row = i+1, col = 1)
@@ -360,6 +364,7 @@ def gen_pidstat_mem_graph(data, p_process):
             fig.add_trace(go.Scatter(x = d.index,
                                      y = d['%mem'],
                                      mode = 'lines',
+                                     fill = 'tozeroy',
                                      name = c,
                                      line_color = color[index]),
                           row = len(processes)+1, col = 1)
@@ -383,6 +388,7 @@ def pidstat_process(pidstat_path, core, thread, p_status, p_process, output, pid
     file = 'pidstat_cpu.csv'
     convert_csv(pidstat_path, output + '/' + file)
     data = pd.read_csv(output + '/' + file, header = 0, index_col = 0)
+    data.dropna(axis = 0, how = 'any', inplace = True)
     data.columns = data.columns.map(lambda x:x.lower())
 
     if pidstat_t:
@@ -402,6 +408,7 @@ def mpstat_process(mpstat_path, core, m_status, output):
     file = 'mpstat.csv'
     convert_csv(mpstat_path, output + '/' + file)
     data = pd.read_csv(output + '/' + file, header=0, index_col=0)
+    data.dropna(axis = 0, how = 'any', inplace = True)
     data.columns = data.columns.map(lambda x:x.lower())
     data = data[data['cpu'] != 'CPU']
     data.to_csv(output + '/' + file)
@@ -434,6 +441,7 @@ def vmstat_process(vmstat_path, vmstat_mem, vmstat_io, vmstat_system, vmstat_cpu
     file = 'vmstat.csv'
     convert_csv(vmstat_path, output + '/' + file)
     data = pd.read_csv(output + '/' + file, header=0)
+    data.dropna(axis = 0, how = 'any', inplace = True)
     data.columns = data.columns.map(lambda x:x.lower())
     v_data = data[data.r.apply(lambda x: x.isnumeric())]
     v_data = v_data.copy()
@@ -463,6 +471,99 @@ def vmstat_process(vmstat_path, vmstat_mem, vmstat_io, vmstat_system, vmstat_cpu
         y_label.append('CPU Usage(%)')
     gen_vmstat_graph(v_data, v_status, title, y_label, output)
 
+def filter_log(path, output, pattern):
+    org_output = sys.stdout
+    with open(path, 'r', encoding='UTF-8',errors='ignore') as f:
+        output_file = open(output, 'w')
+        sys.stdout = output_file
+        res = re.compile(pattern)
+        for line in f:
+            m = res.match(line)
+            if m is not None:
+                print(line)
+        output_file.close()
+    sys.stdout = org_output
+
+def tcmalloc_process(tcmalloc_path, output):
+    if not os.path.exists(tcmalloc_path):
+        print("[Error] {} does not exist!".format(tcmalloc_path))
+        sys.exit(1)
+    print("tcmalloc_path={}".format(tcmalloc_path))
+
+    tcmalloc_file = 'tcmalloc.log'
+    filter_log(tcmalloc_path, output+'/'+tcmalloc_file, r'(.*)(^TCMALLOC_MINI\(USER\).*thread_one \d)')
+    # convert to csv file
+    file = 'tcmalloc.csv'
+    convert_csv(output+'/'+tcmalloc_file, output + '/' + file)
+    column = ['c1', 'c2', 'c3', 'mem', 'c4', 'c5', 'c6', 'c7', 'c8', 'tid', 'c10', 'c11', 'c12', 'c13']
+    data = pd.read_csv(output + '/' + file, header = 0, index_col = 0,
+                       names = column)
+    data.dropna(axis = 0, how = 'any', inplace = True)
+    data_g = data.groupby('tid', sort = False)
+
+    fig = make_subplots(rows=len(data_g.size().index), cols=1, subplot_titles=list(map(str, data_g.size().index)))
+    idx = 1
+    for c, d in data_g:
+        fig.add_trace(go.Scatter(x = np.arange(0, len(d['mem'])),
+                                 y = d['mem'],
+                                 fill = 'tozeroy',
+                                 name = c),
+                      row = idx, col = 1)
+        fig.update_xaxes(title_text = 'Time', row = idx, col = 1)
+        fig.update_yaxes(title_text = 'Mem Size(M)', row = idx, col = 1)
+        idx += 1
+    fig.update_layout(title = 'Memory Usage of Thread', height = 500*len(data_g.size().index))
+    fig.write_html("tcmalloc.html")
+
+def procrank_process(procrank_path, output, p_process):
+    if not os.path.exists(procrank_path):
+        print("[Error] {} does not exist!".format(procrank_path))
+        sys.exit(1)
+    print("procrank_path={}".format(procrank_path))
+
+    # convert to csv file
+    file = 'procrank.csv'
+    convert_csv(procrank_path, output + '/' + file)
+    column = ['pid', 'vss', 'rss', 'pss', 'uss', 'command']
+    data = pd.read_csv(output + '/' + file, names = column)
+    data.dropna(axis = 0, how = 'any', inplace = True)
+    data['vss'] = data['vss'].apply(lambda row: float(row.rstrip('K'))/1024)
+    data['rss'] = data['rss'].apply(lambda row: float(row.rstrip('K'))/1024)
+    data['pss'] = data['pss'].apply(lambda row: float(row.rstrip('K'))/1024)
+    data['uss'] = data['uss'].apply(lambda row: float(row.rstrip('K'))/1024)
+
+    data_g = data.groupby('command', sort = False)
+    if len(p_process) != 0:
+        processes = p_process
+    else:
+        processes = data_g.size().index
+
+    title = []
+    for i, c in enumerate(processes):
+        title.append('PSS of ' + c)
+        title.append('USS of ' + c)
+    fig = make_subplots(rows=len(processes), cols=2, subplot_titles=title)
+
+    for i, c in enumerate(processes):
+        fig.add_trace(go.Scatter(x = np.arange(0, len(data.loc[data['command'] == c].index)),
+                                 y = data.loc[data['command'] == c].pss,
+                                 mode = 'lines',
+                                 fill = 'tozeroy',
+                                 showlegend = False),
+                      row = i+1, col = 1)
+        fig.add_trace(go.Scatter(x = np.arange(0, len(data.loc[data['command'] == c].index)),
+                                 y = data.loc[data['command'] == c].uss,
+                                 mode = 'lines',
+                                 fill = 'tozeroy',
+                                 showlegend = False),
+                      row = i+1, col = 2)
+        fig.update_yaxes(title_text = 'PSS(M)', row = i+1, col = 1)
+        fig.update_yaxes(title_text = 'USS(M)', row = i+1, col = 2)
+        fig.update_xaxes(title_text = 'Time', row = i+1, col = 1)
+        fig.update_xaxes(title_text = 'Time', row = i+1, col = 2)
+
+    fig.update_layout(title = 'Procrank Statistics', height = 500*len(processes))
+    fig.write_html("procrank.html")
 
 def main(args):
     pidstat_path = args.pidstat
@@ -485,6 +586,9 @@ def main(args):
     core = args.core
     output = args.output
 
+    tcmalloc_path = args.tcmalloc
+    procrank_path = args.procrank
+
     if len(output) == 0:
         output = os.getcwd()
     else:
@@ -499,6 +603,10 @@ def main(args):
         mpstat_process(mpstat_path, core, m_status, output)
     if len(vmstat_path) != 0:
         vmstat_process(vmstat_path, vmstat_mem, vmstat_io, vmstat_system, vmstat_cpu, output)
+    if len(tcmalloc_path) != 0:
+        tcmalloc_process(tcmalloc_path, output)
+    if len(procrank_path) != 0:
+        procrank_process(procrank_path, output, p_process)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="data cleaning tool for pidstat and mpstat.")
@@ -518,5 +626,7 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--core", type=str, default=['0'], nargs='*', help="The number of CPU core.")
     parser.add_argument("-t", "--thread", type=str, default="", help="The number of thread.")
     parser.add_argument("-o", "--output", type=str, default="", help="Path of output.")
+    parser.add_argument("-tc", "--tcmalloc", type=str, default="", help="Path of tcmalloc log.")
+    parser.add_argument("-pk", "--procrank", type=str, default="", help="Path of procrank log.")
     args = parser.parse_args()
     main(args)

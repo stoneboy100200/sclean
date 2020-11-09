@@ -227,6 +227,7 @@ def gen_sunburst_graph(data, output):
     plotly.offline.plot(fig, filename = output + '/pidstat_sunburst.html')
 
 def gen_pidstat_cpu_graph(data, p_status, thread, p_process, output, core, file):
+    data.dropna(axis = 0, how = 'any', inplace = True)
     cpu_status = ['%'+i for i in p_status]
     avg = gen_data(data, thread, cpu_status, p_process, output)
     add_process(avg)
@@ -241,6 +242,7 @@ def gen_pidstat_io_graph(data, p_process):
     column = detail.columns.tolist()
     detail = detail.copy()
     detail.dropna(axis = 1, how = 'all', inplace = True)
+    detail.dropna(axis = 0, how = 'any', inplace = True)
     if 'time' in column:
         column.remove('time')
     detail.columns = column
@@ -318,6 +320,7 @@ def gen_pidstat_mem_graph(data, p_process):
     column = detail.columns.tolist()
     detail = detail.copy()
     detail.dropna(axis = 1, how = 'all', inplace = True)
+    detail.dropna(axis = 0, how = 'any', inplace = True)
     if 'time' in column:
         column.remove('time')
     detail.columns = column
@@ -385,10 +388,9 @@ def pidstat_process(pidstat_path, core, thread, p_status, p_process, output, pid
     print("pidstat_path={}".format(pidstat_path))
 
     # convert to csv file
-    file = 'pidstat_cpu.csv'
+    file = 'pidstat.csv'
     convert_csv(pidstat_path, output + '/' + file)
     data = pd.read_csv(output + '/' + file, header = 0, index_col = 0)
-    data.dropna(axis = 0, how = 'any', inplace = True)
     data.columns = data.columns.map(lambda x:x.lower())
 
     if pidstat_t:
@@ -440,7 +442,7 @@ def vmstat_process(vmstat_path, vmstat_mem, vmstat_io, vmstat_system, vmstat_cpu
     # convert to csv file
     file = 'vmstat.csv'
     convert_csv(vmstat_path, output + '/' + file)
-    data = pd.read_csv(output + '/' + file, header=0)
+    data = pd.read_csv(output + '/' + file, header=1)
     data.dropna(axis = 0, how = 'any', inplace = True)
     data.columns = data.columns.map(lambda x:x.lower())
     v_data = data[data.r.apply(lambda x: x.isnumeric())]

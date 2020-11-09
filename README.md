@@ -110,7 +110,7 @@ python sclean.py -p example/log/pidstat.log -pt
 
 如果想看 pidstat 的其他指标可通过参数 “-ps” 指定，如果想指定 CPU 核可通过 “-c” 指定：
 ```
-python sclean.py -p example/log/pidstat.log -c 0 1 2 3 -ps guest usr system cpu
+python sclean.py -p example/log/pidstat.log -pt -c 0 1 2 3 -ps guest usr system cpu
 ```
 上面这条命令指定 CPU0，CPU1，CPU2，CPU3 四个 CPU 核，并显示指定的这四个指标：%guest，%usr，%system，%CPU。
 
@@ -130,13 +130,13 @@ python sclean.py -p example/log/pidstat.log -c 0 1 2 3 -ps guest usr system cpu
 
 如果想进一步查看某支线程在这段时间内 CPU 使用情况的曲线变化图，可使用 ”-t” 参数，会生成一张以线程名为名字的折线图。
 ```
-python sclean.py -p example/log/pidstat.log -t 749
+python sclean.py -p example/log/pidstat.log -pt -t 749
 ```
 <div align=center><img src="./example/pidstat/749.jpg" width="800"></div>
 
 如果只想显示自己关注进程的 CPU 状况，可使用 “-pp” 参数：
 ```
-python sclean.py -p example/log/pidstat.log -c 0 1 2 3 -pp rss cnn rnn rbm
+python sclean.py -p example/log/pidstat.log -pt -c 0 1 2 3 -pp rss cnn rnn rbm
 ```
 这条命令只关注这几支进程：rss cnn rnn rbm
 

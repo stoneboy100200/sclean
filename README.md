@@ -229,7 +229,9 @@ python sclean.py -v example/log/vmstat.log -vm -vi -vs -vc
 这条命令显示这段时间 Memory，IO，System，CPU 的使用状况。
 <div align=center><img src="./example/vmstat/vmstat_all_line.jpg" width="800"></div>
 
-对于所有的命令，都可以使用 “-o” 参数指定输出文件的路径。
+### 其他参数
+- “-o” 参数指定输出文件的路径。
+- “-pic” 参数指定保存为 jpg 格式。
 
 ## 维护者
 [@Seven](https://github.com/stoneboy100200).

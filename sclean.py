@@ -169,7 +169,7 @@ def set_line_chart_param(cpu_data, cpu_status, title, y_label):
     plt.legend(cpu_status)
     plt.title(title)
 
-def gen_mpstat_pie_graph(data, output):
+def gen_mpstat_pie_graph(data, output, is_picture):
     data = data.apply(pd.to_numeric, errors = 'ignore')
     cpu_avg = round(data.groupby('cpu').agg('mean'), 2)
     # pie graph for all CPU
@@ -198,11 +198,14 @@ def gen_mpstat_pie_graph(data, output):
         height = 400 * len(title),
         width=1800,
         title_text = 'Average CPU Usage')
-    plotly.offline.plot(fig, filename = output + '/mpstat_pie.html')
+    if not is_picture:
+        fig.write_html(output + '/' + 'mpstat_pie.html')
+    else:
+        fig.write_image(output + '/' + 'mpstat_pie.jpg', width = 1500, height = 400*len(title))
 
-def gen_mpstat_graph(data, core, cpu_status, output):
+def gen_mpstat_graph(data, core, cpu_status, output, is_picture):
     detail = data[~data.index.isin(['Average:'])]
-    gen_mpstat_pie_graph(detail, output)
+    gen_mpstat_pie_graph(detail, output, is_picture)
 
     graph_num = len(core)
     fig = plt.figure(figsize = (20, graph_num*5))
@@ -219,14 +222,17 @@ def gen_mpstat_graph(data, core, cpu_status, output):
 
     plt.savefig(output + "/mpstat_line.jpg", bbox_inches='tight')
 
-def gen_sunburst_graph(data, output):
+def gen_sunburst_graph(data, output, is_picture):
     data['command']=data['command'].map(lambda x: x[3:] if x[0:3]=='|__' else x)
     data['%cpu']=data['%cpu'].map(lambda x: str(x)+'%')
     fig = px.sunburst(data, path = ['cpu', 'process', 'command', 'tid', '%cpu'])
     fig.update_layout()
-    plotly.offline.plot(fig, filename = output + '/pidstat_sunburst.html')
+    if not is_picture:
+        fig.write_html(output + '/' + 'pidstat_sunburst.html')
+    else:
+        fig.write_image(output + '/' + 'pidstat_sunburst.jpg', width = 1000, height = 1000)
 
-def gen_pidstat_cpu_graph(data, p_status, thread, p_process, output, core, file):
+def gen_pidstat_cpu_graph(data, p_status, thread, p_process, output, core, is_picture):
     data.dropna(axis = 0, how = 'any', inplace = True)
     cpu_status = ['%'+i for i in p_status]
     avg = gen_data(data, thread, cpu_status, p_process, output)
@@ -234,10 +240,11 @@ def gen_pidstat_cpu_graph(data, p_status, thread, p_process, output, core, file)
     # remove row of main process
     avg = filter_process(avg, p_process)
     avg = sort_by_cpu(avg, core, cpu_status, output)
-    gen_sunburst_graph(avg, output)
-    avg.to_csv(output + '/' + file, index=False)
+    gen_sunburst_graph(avg, output, is_picture)
+    file = 'pidstat_cpu.csv'
+    avg.to_csv(output + '/' + file, index = False)
 
-def gen_pidstat_io_graph(data, p_process):
+def gen_pidstat_io_graph(data, p_process, output, is_picture):
     detail = data[~data.index.isin(['#'])]
     column = detail.columns.tolist()
     detail = detail.copy()
@@ -246,7 +253,8 @@ def gen_pidstat_io_graph(data, p_process):
     if 'time' in column:
         column.remove('time')
     detail.columns = column
-    detail.to_csv('pidstat_io.csv')
+    file = 'pidstat_io.csv'
+    detail.to_csv(output + '/' + file, index = False)
     data_g = detail.groupby('command', sort = False)
     if len(p_process) != 0:
         processes = p_process
@@ -313,9 +321,12 @@ def gen_pidstat_io_graph(data, p_process):
     fig.update_layout(title = 'IO Usage',
                       height = 500*len(processes),
                       legend = {'x': 1, 'y': 0})
-    fig.write_html("pidstat_io.html")
+    if not is_picture:
+        fig.write_html(output + '/' + 'pidstat_io.html')
+    else:
+        fig.write_image(output + '/' + 'pidstat_io.jpg', width = 1500, height = 500*len(processes))
 
-def gen_pidstat_mem_graph(data, p_process):
+def gen_pidstat_mem_graph(data, p_process, output, is_picture):
     detail = data[~data.index.isin(['#'])]
     column = detail.columns.tolist()
     detail = detail.copy()
@@ -327,7 +338,8 @@ def gen_pidstat_mem_graph(data, p_process):
     # convert kb to M
     detail['vsz'] = detail['vsz'].map(lambda x: float(x)/1024)
     detail['rss'] = detail['rss'].map(lambda x: float(x)/1024)
-    detail.to_csv('pidstat_mem.csv')
+    file = 'pidstat_mem.csv'
+    detail.to_csv(output + '/' + file, index = False)
     data_g = detail.groupby('command', sort = False)
     if len(p_process) != 0:
         processes = p_process
@@ -379,9 +391,12 @@ def gen_pidstat_mem_graph(data, p_process):
     fig.update_layout(title = 'Memory Usage',
                       height = 500*len(processes),
                       legend = {'x': 0.5, 'y': 0})
-    fig.write_html("pidstat_mem.html")
+    if not is_picture:
+        fig.write_html(output + '/' + 'pidstat_mem.html')
+    else:
+        fig.write_image(output + '/' + 'pidstat_mem.jpg', width = 1500, height = 500*len(processes))
 
-def pidstat_process(pidstat_path, core, thread, p_status, p_process, output, pidstat_t, pidstat_r, pidstat_d):
+def pidstat_process(pidstat_path, core, thread, p_status, p_process, output, pidstat_t, pidstat_r, pidstat_d, is_picture):
     if not os.path.exists(pidstat_path):
         print("[Error] {} does not exist!".format(pidstat_path))
         sys.exit(1)
@@ -394,13 +409,13 @@ def pidstat_process(pidstat_path, core, thread, p_status, p_process, output, pid
     data.columns = data.columns.map(lambda x:x.lower())
 
     if pidstat_t:
-        gen_pidstat_cpu_graph(data, p_status, thread, p_process, output, core, file)
+        gen_pidstat_cpu_graph(data, p_status, thread, p_process, output, core, is_picture)
     if pidstat_r:
-        gen_pidstat_mem_graph(data, p_process)
+        gen_pidstat_mem_graph(data, p_process, output, is_picture)
     if pidstat_d:
-        gen_pidstat_io_graph(data, p_process)
+        gen_pidstat_io_graph(data, p_process, output, is_picture)
 
-def mpstat_process(mpstat_path, core, m_status, output):
+def mpstat_process(mpstat_path, core, m_status, output, is_picture):
     if not os.path.exists(mpstat_path):
         print("[Error] {} does not exist!".format(mpstat_path))
         sys.exit(1)
@@ -413,10 +428,10 @@ def mpstat_process(mpstat_path, core, m_status, output):
     data.dropna(axis = 0, how = 'any', inplace = True)
     data.columns = data.columns.map(lambda x:x.lower())
     data = data[data['cpu'] != 'CPU']
-    data.to_csv(output + '/' + file)
+    data.to_csv(output + '/' + file, index = False)
 
     cpu_status = ['%'+i for i in m_status]
-    gen_mpstat_graph(data, core, cpu_status, output)
+    gen_mpstat_graph(data, core, cpu_status, output, is_picture)
 
 def gen_vmstat_graph(data, v_status, title, y_label, output):
     graph_num = len(title)
@@ -486,7 +501,7 @@ def filter_log(path, output, pattern):
         output_file.close()
     sys.stdout = org_output
 
-def tcmalloc_process(tcmalloc_path, output):
+def tcmalloc_process(tcmalloc_path, output, is_picture):
     if not os.path.exists(tcmalloc_path):
         print("[Error] {} does not exist!".format(tcmalloc_path))
         sys.exit(1)
@@ -515,9 +530,12 @@ def tcmalloc_process(tcmalloc_path, output):
         fig.update_yaxes(title_text = 'Mem Size(M)', row = idx, col = 1)
         idx += 1
     fig.update_layout(title = 'Memory Usage of Thread', height = 500*len(data_g.size().index))
-    fig.write_html("tcmalloc.html")
+    if not is_picture:
+        fig.write_html(output + '/' + 'tcmalloc.html')
+    else:
+        fig.write_image(output + '/' + 'tcmalloc.jpg', width = 1500, height = 500*len(data_g.size().index))
 
-def procrank_process(procrank_path, output, p_process):
+def procrank_process(procrank_path, output, p_process, is_picture):
     if not os.path.exists(procrank_path):
         print("[Error] {} does not exist!".format(procrank_path))
         sys.exit(1)
@@ -565,7 +583,39 @@ def procrank_process(procrank_path, output, p_process):
         fig.update_xaxes(title_text = 'Time', row = i+1, col = 2)
 
     fig.update_layout(title = 'Procrank Statistics', height = 500*len(processes))
-    fig.write_html("procrank.html")
+    if not is_picture:
+        fig.write_html(output + '/' + 'procrank.html')
+    else:
+        fig.write_image(output + '/' + 'procrank.jpg', width = 1500, height = 500*len(processes))
+
+def free_process(free_path, output, is_picture):
+    if not os.path.exists(free_path):
+        print("[Error] {} does not exist!".format(free_path))
+        sys.exit(1)
+    print("free_path={}".format(free_path))
+
+    # convert to csv file
+    file = 'free.csv'
+    convert_csv(free_path, output + '/' + file)   
+    data = pd.read_csv(output + '/' + file, header = 0, index_col = 0)
+    data.columns = data.columns.map(lambda x:x.lower())
+    data.dropna(axis = 0, how = 'any', inplace = True)
+    data['available'] = data['available'].apply(lambda row: float(row)/1024)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x = np.arange(0, len(data['available'].loc['Mem:'])),
+                             y = data['available'].loc['Mem:'],
+                             mode = 'lines',
+                             fill = 'tozeroy',
+                             name = 'available',
+                             connectgaps=True))
+    fig.update_layout(title = 'Available Memory Statistics',
+                      xaxis_title = 'Time',
+                      yaxis_title = 'Available Memory(M)')
+
+    if not is_picture:
+        fig.write_html(output + '/' + 'free.html')
+    else:
+        fig.write_image(output + '/' + 'free.jpg')
 
 def main(args):
     pidstat_path = args.pidstat
@@ -590,6 +640,8 @@ def main(args):
 
     tcmalloc_path = args.tcmalloc
     procrank_path = args.procrank
+    free_path = args.free
+    is_picture = args.picture
 
     if len(output) == 0:
         output = os.getcwd()
@@ -600,15 +652,17 @@ def main(args):
     print("output={}".format(output))
 
     if len(pidstat_path) != 0:
-        pidstat_process(pidstat_path, core, thread, p_status, p_process, output, pidstat_t, pidstat_r, pidstat_d)
+        pidstat_process(pidstat_path, core, thread, p_status, p_process, output, pidstat_t, pidstat_r, pidstat_d, is_picture)
     if len(mpstat_path) != 0:
-        mpstat_process(mpstat_path, core, m_status, output)
+        mpstat_process(mpstat_path, core, m_status, output, is_picture)
     if len(vmstat_path) != 0:
         vmstat_process(vmstat_path, vmstat_mem, vmstat_io, vmstat_system, vmstat_cpu, output)
     if len(tcmalloc_path) != 0:
-        tcmalloc_process(tcmalloc_path, output)
+        tcmalloc_process(tcmalloc_path, output, is_picture)
     if len(procrank_path) != 0:
-        procrank_process(procrank_path, output, p_process)
+        procrank_process(procrank_path, output, p_process, is_picture)
+    if len(free_path) != 0:
+        free_process(free_path, output, is_picture)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Data cleaning and visualization tools.")
@@ -630,5 +684,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", type=str, default="", help="Path of output.")
     parser.add_argument("-tc", "--tcmalloc", type=str, default="", help="Path of tcmalloc log.")
     parser.add_argument("-pk", "--procrank", type=str, default="", help="Path of procrank log.")
+    parser.add_argument("-f", "--free", type=str, default="", help="Path of free log.")
+    parser.add_argument("-pic", "--picture", action='store_true', default=False, help="Save as picture.")
     args = parser.parse_args()
     main(args)

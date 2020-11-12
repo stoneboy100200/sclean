@@ -140,8 +140,6 @@ python sclean.py -p example/log/pidstat.log -pt -c 0 1 2 3 -pp rss cnn rnn rbm
 ```
 这条命令只关注这几支进程：rss cnn rnn rbm
 
-<div align=center><img src="./example/pidstat/sunburst_filter_process.gif" width="600"></div>
-
 #### Memory 分析
 因为是对内存进行数据分析，所以你录 log 的命令需要加上参数 “-r”，如下示例：
 ```
@@ -158,7 +156,7 @@ python sclean.py -p example/log/pidstat_mem_io.log -pr -pp process1 process2
 ```
 
 最终会生成文件 ***pidstat_mem.html***。在 html 页面以交互式的形式显示每个进程的 VSZ、RSS 以及指定进程的内存使用率。
-<div align=center><img src="./example/pidstat/pidstat_mem.png" width="800"></div>
+<div align=center><img src="./example/pidstat/pidstat_mem.jpg" width="800"></div>
 
 #### IO 分析
 因为是对 IO 进行数据分析，所以你录 log 的命令需要加上参数 “-d”，如下示例：
@@ -175,7 +173,7 @@ python sclean.py -p example/log/pidstat_mem_io.log -pd
 python sclean.py -p example/log/pidstat_mem_io.log -pd -pp process1 process2
 ```
 最终会生成文件 ***pidstat_io.html***。在 html 页面以交互式的形式显示指定进程每秒读写磁盘的大小，以及 CCWR 和 IO Delay 的状态。
-<div align=center><img src="./example/pidstat/pidstat_io.png" width="800"></div>
+<div align=center><img src="./example/pidstat/pidstat_io.jpg" width="800"></div>
 
 ### mpstat 辅助分析
 mpstat 的 log 录制可以使用如下命令：
@@ -202,8 +200,7 @@ python sclean.py -m example/log/mpstat.log -c 0 1 2 3 -ms usr nice irq soft
 这条命令指定了这几个 CPU 指标：%usr，%nice，%irq，%soft。
 
 ***mpstat_pie.html*** 以饼图的形式显示这段时间内 CPU 平均性能指标。下图显示 CPU0，CPU1，CPU2，CPU3 这四个 CPU 核每个核的平均性能指标，CPU ALL 表示这四个核的加在一起的平均性能指标。
-<div align=center><img src="./example/mpstat/mpstat_pie_1.png" width="800"></div>
-<div align=center><img src="./example/mpstat/mpstat_pie_2.png" width="800"></div>
+<div align=center><img src="./example/mpstat/mpstat_pie.jpg" width="800"></div>
 
 ***mpstat.csv*** 是清洗后的数据。
 

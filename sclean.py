@@ -535,6 +535,19 @@ def tcmalloc_process(tcmalloc_path, output, is_picture):
     else:
         fig.write_image(output + '/' + 'tcmalloc.jpg', width = 1500, height = 500*len(data_g.size().index))
 
+def time_column(data, column):
+    data[column] = data[column].astype(str)
+    
+    if len(data.loc[data[column].str.contains(':') & ~data[column].str.endswith(':')]) != 0:
+        # add new column for time
+        time = ''
+        def get_time(data):
+            global time
+            if data.find(':') != -1 and not data.endswith(':'):
+                time = data
+            return time
+        data['time'] = data.apply(lambda row: get_time(row[column]), axis = 1)
+
 def procrank_process(procrank_path, output, p_process, is_picture):
     if not os.path.exists(procrank_path):
         print("[Error] {} does not exist!".format(procrank_path))
@@ -546,6 +559,8 @@ def procrank_process(procrank_path, output, p_process, is_picture):
     convert_csv(procrank_path, output + '/' + file)
     column = ['pid', 'vss', 'rss', 'pss', 'uss', 'command']
     data = pd.read_csv(output + '/' + file, names = column)
+
+    time_column(data, 'pid')
     data.dropna(axis = 0, how = 'any', inplace = True)
     data['vss'] = data['vss'].apply(lambda row: float(row.rstrip('K'))/1024)
     data['rss'] = data['rss'].apply(lambda row: float(row.rstrip('K'))/1024)
@@ -565,13 +580,15 @@ def procrank_process(procrank_path, output, p_process, is_picture):
     fig = make_subplots(rows=len(processes), cols=2, subplot_titles=title)
 
     for i, c in enumerate(processes):
-        fig.add_trace(go.Scatter(x = np.arange(0, len(data.loc[data['command'] == c].index)),
+        data_x = data.loc[data['command'] == c].time if 'time' in data.columns \
+            else np.arange(0, len(data.loc[data['command'] == c]))
+        fig.add_trace(go.Scatter(x = data_x,
                                  y = data.loc[data['command'] == c].pss,
                                  mode = 'lines',
                                  fill = 'tozeroy',
                                  showlegend = False),
                       row = i+1, col = 1)
-        fig.add_trace(go.Scatter(x = np.arange(0, len(data.loc[data['command'] == c].index)),
+        fig.add_trace(go.Scatter(x = data_x,
                                  y = data.loc[data['command'] == c].uss,
                                  mode = 'lines',
                                  fill = 'tozeroy',
@@ -596,14 +613,20 @@ def free_process(free_path, output, is_picture):
 
     # convert to csv file
     file = 'free.csv'
-    convert_csv(free_path, output + '/' + file)   
-    data = pd.read_csv(output + '/' + file, header = 0, index_col = 0)
+    convert_csv(free_path, output + '/' + file)
+    column = ['type', 'total', 'used', 'free', 'shared', 'buff/cache', 'available']
+    data = pd.read_csv(output + '/' + file, names = column)
+
+    time_column(data, 'type')
     data.columns = data.columns.map(lambda x:x.lower())
     data.dropna(axis = 0, how = 'any', inplace = True)
     data['available'] = data['available'].apply(lambda row: float(row)/1024)
+    data_x = data.loc[data['type'] == 'Mem:'].time if 'time' in data.columns \
+            else np.arange(0, len(data.loc[data['type'] == 'Mem:'].available))
+
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x = np.arange(0, len(data['available'].loc['Mem:'])),
-                             y = data['available'].loc['Mem:'],
+    fig.add_trace(go.Scatter(x = data_x,
+                             y = data.loc[data['type'] == 'Mem:'].available,
                              mode = 'lines',
                              fill = 'tozeroy',
                              name = 'available',

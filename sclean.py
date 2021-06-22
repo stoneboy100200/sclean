@@ -86,7 +86,7 @@ def get_graph_data(data):
     data[['%usr', '%system', '%CPU']] = data[['%usr', '%system', '%CPU']].astype(float)
     process = data.groupby(data['Process'])[['%usr', '%system', '%CPU']].sum()
     x_list = process.index
-    index = np.arange(len(x_list));
+    index = np.arange(len(x_list))
     y_list1 = round(process['%usr'], 2)
     y_list2 = round(process['%system'], 2)
     y_list3 = round(process['%CPU'], 2)
@@ -97,7 +97,7 @@ def set_bar_chart_param(data, ax, title, cpu_status):
     data[cpu_status] = data[cpu_status].astype(float)
     process = data.groupby(data['process'])[cpu_status].sum()
     x_list = process.index
-    index = np.arange(len(x_list));
+    index = np.arange(len(x_list))
     for i, status in enumerate(cpu_status):
         y_list = round(process[status], 1)
         rect = ax.bar(index+bar_width*i, y_list, bar_width, label = status)

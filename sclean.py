@@ -640,6 +640,44 @@ def free_process(free_path, output, is_picture):
     else:
         fig.write_image(output + '/' + 'free.jpg')
 
+def hogs_process(hogs_path, output, thread, is_picture):
+    if not os.path.exists(hogs_path):
+        print("[Error] {} does not exist!".format(hogs_path))
+        sys.exit(1)
+    print("hogs_path={}".format(hogs_path))
+
+    # convert to csv file
+    file = 'hogs.csv'
+    convert_csv(hogs_path, output + '/' + file)
+    column = ['PID', 'NAME', 'MSEC', 'PIDS', 'SYS', 'MEMORY', 'MEM%']
+    data = pd.read_csv(output + '/' + file, names = column)
+
+    data.columns = data.columns.map(lambda x:x.lower())
+    data['sys'] = data['sys'].apply(lambda row: row.rstrip('%'))
+    if len(thread) != 0:
+        data = data[data['pid'] == int(thread)]
+    print(data)
+    # print(data[data['pid'] == int(thread)])
+    
+    # print('len(data[sys]): '.format(data.loc[data['sys'] == p_process]))
+    # sys.exit(1)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x = np.arange(0, len(data['sys'])),
+                             y = data['sys'],
+                             mode = 'lines',
+                             fill = 'tozeroy',
+                             name = 'available',
+                             connectgaps=True))
+    fig.update_layout(title = 'mfrlaunch CPU Usage Statistics',
+                      xaxis_title = 'Time',
+                      yaxis_title = 'CPU Used(%)')
+
+    if not is_picture:
+        plotly.offline.plot(fig, filename = output + '/hogs.html')
+    else:
+        fig.write_image(output + '/' + 'hogs.jpg')
+
 def main(args):
     pidstat_path = args.pidstat
     pidstat_t = args.pidstat_t
@@ -665,6 +703,7 @@ def main(args):
     procrank_path = args.procrank
     free_path = args.free
     is_picture = args.picture
+    hogs_path = args.hogs
 
     if len(output) == 0:
         output = os.getcwd()
@@ -686,6 +725,8 @@ def main(args):
         procrank_process(procrank_path, output, p_process, is_picture)
     if len(free_path) != 0:
         free_process(free_path, output, is_picture)
+    if len(hogs_path) != 0:
+        hogs_process(hogs_path, output, thread, is_picture)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Data cleaning and visualization tools.")
@@ -709,5 +750,6 @@ if __name__ == "__main__":
     parser.add_argument("-pk", "--procrank", type=str, default="", help="Path of procrank log.")
     parser.add_argument("-f", "--free", type=str, default="", help="Path of free log.")
     parser.add_argument("-pic", "--picture", action='store_true', default=False, help="Save as picture.")
+    parser.add_argument("-hg", "--hogs", type=str, default="", help="Path of hogs log for QNX.")
     args = parser.parse_args()
     main(args)

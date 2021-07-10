@@ -656,11 +656,6 @@ def hogs_process(hogs_path, output, thread, is_picture):
     data['sys'] = data['sys'].apply(lambda row: row.rstrip('%'))
     if len(thread) != 0:
         data = data[data['pid'] == int(thread)]
-    print(data)
-    # print(data[data['pid'] == int(thread)])
-    
-    # print('len(data[sys]): '.format(data.loc[data['sys'] == p_process]))
-    # sys.exit(1)
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(x = np.arange(0, len(data['sys'])),

@@ -14,11 +14,11 @@ SClean is a tool for data cleaning and visualization of the output of various pa
 Many times we have performance analysis tools, but the log obtained through the tools is too long, especially the log obtained after a long time pressure test. It is dazzling at first sight and difficult to findthe key points. If you try to select several time periods to check, the locality problem may bring you into another misunderstanding. Then you may try to filter by keywords manually, which make it a difficulty to analyze the root cause, either because the file is too large to open, or because the filtering result is not good enough. The purpose of SClean is to visualize the results of performance analysis from "God's perspective", which can help engineers quickly locate the root cause of the problem and save a lot of time for drinking coffee, while they are immersed in the log analysis.
 
 ## Scenarios
-- The system performance cannot be monitored in real time under embedded Linux environment;
-- Quickly locate the performance bottleneck caused by a large number of threads (dozens) running on different CPU cores;
-- the CPU core can't be observed by the average data obtained by pidstat, which needs to be analyzed further;
-- The log file is too large, which takes a lot of time to analyze;
-- Memory, IO, and the number of context switching are abnormal in a certain partial time period, which affects the global judgment;
+- The system performance cannot be monitored in real time under embedded Linux environment.
+- Quickly locate the performance bottleneck caused by a large number of threads (dozens) running on different CPU cores.
+- the CPU core can't be observed by the average data obtained by pidstat, which needs to be analyzed further.
+- The log file is too large, which takes a lot of time to analyze.
+- Memory, IO, and the number of context switching are abnormal in a certain partial time period, which affects the global judgment.
 - If you want to see the overall performance during certain periods, the visual display is clear at a glance.
 
 ## Installation
@@ -75,17 +75,19 @@ $ rm ~/.cache/matplotlib
 ## Usage
 SClean cleans the output of the sysstat tool, so you must have a log file before you can use it.
 
-### pidstat Auxiliary Analysis
+### Pidstat Analysis
 #### Thread CPU Usage Analysis
 For pidstat, at present SClean only cleans data at the thread level, because most of the time we don't know the CPU status of several threads in progress. So your command parameter should be "-t", for example:
 ```python
-$ pidstat -t interval count  // interval 为时间间隔，count 为次数
+$ pidstat -t interval count  // interval indicates time interval, count indicates frequency
 ```
 
-Assuming that you already have a log generated based on pidstat: pidstat.log, note that pidstat must be entered until it ends normally, and the log after the end will count the average value during this time period. SClean also cleans the average value. The following is an example:
+Assuming that you already have a log based on pidstat: pidstat.log, note that pidstat must be entered until it ends normally, and the log after the end will count the average value during this time. SClean also cleans the average value. The following is an example:
 ```
 $ pidstat -t 5 360 > pidstat.log
 ```
+
+pidstat.log looks like this:
 ```
 Linux 4.15.0-112-generic (m2133)        2020年10月20日  _x86_64_        (12 CPU)
 
@@ -100,7 +102,6 @@ Average:            -       344    0.96    0.00    0.00    0.96     -  |__chrome
 Average:         1808         -    1.92    0.00    0.00    1.92     -  chrome
 Average:            -      2620    1.92    0.00    0.00    1.92     -  |__Media
 Average:            -     30579    0.96    0.96    0.00    1.92     -  |__PacerThread
-
 ```
 
 run command：
@@ -122,15 +123,16 @@ The above command specifies four CPU cores, CPU0, CPU1, CPU2, and CPU3, and disp
 ***pidstat_sunburst.html*** is a sunburst chart, which shows the CPU usage (%CPU) of each thread in the specified CPU core:
 <div align=center><img src="./example/pidstat/sunburst.gif" width="600"></div>
 
-- Counting the fifth circle from inside to outside, ie. the outermost circle represents the average CPU usage (%CPU) of this thread during this time period;
-- The fourth circle from the inside out indicates the thread number;
-- The third circle from the inside out indicates the thread name. Different threads may have same names in different cores, such as a thread created by a shared library;
-- The second circle from the inside out indicates the name of the process to which the thread of the third circle belongs, and there may be processes with the same name in this circle. For example, the threads in this process may be tied to different cores, and they will be divided into the same process when categorized;
-- The innermost circle represents the number of CPU cores. For example, "0" means all processes/threads running only on CPU0 core; "0,1,2,3" means all processes/threads running on CPU0, CPU1, CPU2, and CPU3 Process/thread (meaning that this thread is either bound to the four cores of CPU0, CPU1, CPU2, and CPU3; or if no core is bound, it will float on the four cores of CPU0, CPU1, CPU2, and CPU3);
-- Which processes are on each core, which threads each process contains, and the thread number of each thread is distinguished by the radius line in the circle;
+- Counting the fifth circle from inside to outside, ie. the outermost circle represents the average CPU usage (%CPU) of this thread during this time period.
+- The fourth circle from the inside out indicates the thread number.
+- The third circle from the inside out indicates the thread name. Different threads may have same names in different cores, such as a thread created by a shared library.
+- The second circle from the inside out indicates the name of the process to which the thread of the third circle belongs, and there may be processes with the same name in this circle. For example, the threads in this process may be tied to different cores, and they will be divided into the same process when categorized.
+- The innermost circle represents the number of CPU cores. For example, "0" means all processes/threads running only on CPU0 core; "0,1,2,3" means all processes/threads running on CPU0, CPU1, CPU2, and CPU3 Process/thread (meaning that this thread is either bound to the four cores of CPU0, CPU1, CPU2, and CPU3; or if no core is bound, it will float on the four cores of CPU0, CPU1, CPU2, and CPU3).
+- Which processes are on each core, which threads each process contains, and the thread number of each thread is distinguished by the radius line in the circle.
 
 ***The pidstat_cpu.csv*** file records in detail the average CPU usage of all threads in the system:
 <div align=center><img src="./example/pidstat/pidstat_detail.png" width="600"></div>
+
 The command column represents the thread name, and tid represents the thread number, which is consistent with the output of pidstat. The process to which a thread belongs is represented by process, and cpu means the corresponding thread is running on which CPU core. The tgid column has been filtered out and displayed as "-", because we are mainly concerned with threads.
 
 If you want to further view the curve graph of the CPU usage of a thread during this period, you can use the "-t" parameter, and a line graph with the name of the thread will be generated.
